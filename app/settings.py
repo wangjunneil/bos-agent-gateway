@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     RATE_LIMIT_DEFAULT_RPM: int = 60
     RATE_LIMIT_ADMIN_RPM: int = 0
     RATE_LIMIT_WINDOW_SECONDS: int = 60
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_USERNAME: str = ""
+    REDIS_PASSWORD: str = ""
+    REDIS_ENABLED: bool = True
     ADMIN_API_KEY: str
     ADMIN_USERNAME: str = "admin"
 

@@ -50,10 +50,11 @@ class Agent(Base):
     __tablename__ = "agents"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    base_url: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    base_url: Mapped[str] = mapped_column(String, nullable=False)
     name: Mapped[str | None] = mapped_column(String, nullable=True)
     description: Mapped[str | None] = mapped_column(String, nullable=True)
-    agent_card: Mapped[str | None] = mapped_column(Text, nullable=True)
+    agent_info: Mapped[str | None] = mapped_column(Text, nullable=True)
+    dify_api_key: Mapped[str | None] = mapped_column(String, nullable=True)
     status: Mapped[str] = mapped_column(String, nullable=False, default="unknown")
     status_message: Mapped[str | None] = mapped_column(String, nullable=True)
     last_seen: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -64,9 +65,7 @@ class Agent(Base):
     access_entries: Mapped[list["UserAgentAccess"]] = relationship(
         back_populates="agent", cascade="all, delete-orphan"
     )
-    tags: Mapped[list["AgentTag"]] = relationship(
-        cascade="all, delete-orphan"
-    )
+    tags: Mapped[list["AgentTag"]] = relationship(cascade="all, delete-orphan")
 
 
 class AgentTag(Base):
@@ -101,13 +100,31 @@ class Invocation(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
-    agent_id: Mapped[str] = mapped_column(String, ForeignKey("agents.id"), nullable=False)
+    agent_id: Mapped[str] = mapped_column(
+        String, ForeignKey("agents.id", ondelete="CASCADE"), nullable=False
+    )
     method: Mapped[str] = mapped_column(String, nullable=False)
     path: Mapped[str] = mapped_column(String, nullable=False)
+    task_id: Mapped[str | None] = mapped_column(String, nullable=True)
     status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     error: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+    __table_args__ = (UniqueConstraint("agent_id", "dify_user"),)
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    agent_id: Mapped[str] = mapped_column(
+        String, ForeignKey("agents.id", ondelete="CASCADE"), nullable=False
+    )
+    dify_user: Mapped[str] = mapped_column(String, nullable=False)
+    conversation_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    latest_task_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
 async def get_db():
@@ -123,8 +140,8 @@ async def init_db() -> None:
         result = await session.execute(select(User).where(User.role == "admin"))
         existing_admin = result.scalar_one_or_none()
 
+        now = datetime.now(UTC)
         if existing_admin is None:
-            now = datetime.now(UTC)
             admin = User(
                 id=str(uuid4()),
                 username=settings.ADMIN_USERNAME,

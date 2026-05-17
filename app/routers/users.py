@@ -102,7 +102,21 @@ async def get_user(
         .options(selectinload(Agent.tags))
         .order_by(Agent.created_at.desc())
     )
-    agents = [AgentResponse.model_validate(a) for a in agent_result.scalars().all()]
+    agents = [
+        AgentResponse(
+            id=a.id,
+            base_url=a.base_url,
+            name=a.name,
+            description=a.description,
+            status=a.status,
+            last_seen=a.last_seen,
+            is_public=a.is_public,
+            tags=[t.tag for t in a.tags] if a.tags else [],
+            created_at=a.created_at,
+            updated_at=a.updated_at,
+        )
+        for a in agent_result.scalars().all()
+    ]
 
     return UserDetailResponse(
         id=user.id,
@@ -231,7 +245,21 @@ async def assign_agents(
         .options(selectinload(Agent.tags))
         .order_by(Agent.created_at.desc())
     )
-    return [AgentResponse.model_validate(a) for a in agent_result.scalars().all()]
+    return [
+        AgentResponse(
+            id=a.id,
+            base_url=a.base_url,
+            name=a.name,
+            description=a.description,
+            status=a.status,
+            last_seen=a.last_seen,
+            is_public=a.is_public,
+            tags=[t.tag for t in a.tags] if a.tags else [],
+            created_at=a.created_at,
+            updated_at=a.updated_at,
+        )
+        for a in agent_result.scalars().all()
+    ]
 
 
 @router.delete(

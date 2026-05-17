@@ -5,10 +5,10 @@
 }
 
 :root {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', '72', system-ui, -apple-system, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color-scheme: dark;
+  color-scheme: light;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -19,8 +19,8 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #0f1117;
-  color: #e4e4e7;
+  background: #F5F6F7;
+  color: #1D2D3E;
 }
 
 #root {
@@ -33,18 +33,18 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: #EDEFF2;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: #C5C9CE;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: #A8B0B8;
 }
 
 ::selection {
-  background: rgba(99, 102, 241, 0.3);
+  background: rgba(0, 112, 242, 0.2);
 }

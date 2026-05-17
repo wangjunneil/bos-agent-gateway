@@ -19,11 +19,12 @@ import {
   Fade,
   InputAdornment,
 } from "@mui/material";
-import { VpnKey, Logout } from "@mui/icons-material";
+import { VpnKey, Logout, GitHub, Api as ApiIcon } from "@mui/icons-material";
 import { setApiKey, validateKey, onAuthError } from "./api";
 import DashboardPage from "./pages/Dashboard";
 import AgentsPage from "./pages/Agents";
 import UsersPage from "./pages/Users";
+import AgentDetail from "./pages/AgentDetail";
 
 function LoginDialog({ open, onLogin }) {
   const [key, setKey] = useState("");
@@ -49,17 +50,22 @@ function LoginDialog({ open, onLogin }) {
       <Box sx={{ p: 4, textAlign: "center" }}>
         <Box
           sx={{
-            width: 56, height: 56, mx: "auto", mb: 2,
-            borderRadius: "14px",
-            background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-            display: "flex", alignItems: "center", justifyContent: "center",
+            width: 56,
+            height: 56,
+            mx: "auto",
+            mb: 2,
+            borderRadius: "8px",
+            background: "linear-gradient(135deg, #0070F2 0%, #0057B8 100%)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
           <VpnKey sx={{ fontSize: 28, color: "#fff" }} />
         </Box>
-        <Typography variant="h6" sx={{ mb: 0.5 }}>
+        <DialogTitle sx={{ p: 0, mb: 1, fontSize: "1.1rem", fontWeight: 700, color: "#1D2D3E" }}>
           BOS AGENT GATEWAY
-        </Typography>
+        </DialogTitle>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           Enter your API key to continue
         </Typography>
@@ -68,7 +74,10 @@ function LoginDialog({ open, onLogin }) {
           fullWidth
           placeholder="sk-..."
           value={key}
-          onChange={(e) => { setKey(e.target.value); setError(""); }}
+          onChange={(e) => {
+            setKey(e.target.value);
+            setError("");
+          }}
           onKeyDown={(e) => e.key === "Enter" && submit()}
           error={!!error}
           helperText={error}
@@ -87,7 +96,7 @@ function LoginDialog({ open, onLogin }) {
           size="large"
           onClick={submit}
           disabled={loading}
-          sx={{ py: 1.2 }}
+          sx={{ py: 1.2, fontWeight: 600 }}
         >
           {loading ? <CircularProgress size={22} color="inherit" /> : "Connect"}
         </Button>
@@ -101,6 +110,7 @@ export default function App() {
   const [checking, setChecking] = useState(true);
   const [tab, setTab] = useState(0);
   const [toast, setToast] = useState(null);
+  const [agentDetail, setAgentDetail] = useState(null);
 
   const logout = useCallback(() => {
     localStorage.removeItem("apiKey");
@@ -127,50 +137,95 @@ export default function App() {
 
   if (checking) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
-        <CircularProgress sx={{ color: "#6366f1" }} />
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "100vh",
+        }}
+      >
+        <CircularProgress sx={{ color: "#0070F2" }} />
       </Box>
     );
   }
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+    <Box sx={{ minHeight: "100vh", bgcolor: "#F5F6F7" }}>
       {/* Header */}
-      <AppBar
-        position="sticky"
-        elevation={0}
-        sx={{
-          bgcolor: "rgba(15,17,23,0.8)",
-          backdropFilter: "blur(12px)",
-          borderBottom: "1px solid",
-          borderColor: "divider",
-        }}
-      >
+      <AppBar position="sticky" elevation={0}>
         <Toolbar sx={{ minHeight: "52px !important", px: { xs: 2, md: 3 } }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexGrow: 1 }}>
             <Box
               sx={{
-                width: 28, height: 28, borderRadius: "7px",
-                background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-                display: "flex", alignItems: "center", justifyContent: "center",
+                width: 30,
+                height: 30,
+                borderRadius: "6px",
+                background: "linear-gradient(135deg, #0070F2 0%, #0057B8 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
-                <Typography sx={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>B</Typography>
+              <Typography sx={{ fontSize: 14, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
+                B
+              </Typography>
             </Box>
-            <Typography variant="body1" sx={{ fontWeight: 600, letterSpacing: "-0.01em" }}>
-              BOS AGENT GATEWAY
+            <Typography
+              variant="body1"
+              sx={{ fontWeight: 600, color: "#1D2D3E", letterSpacing: "-0.01em" }}
+            >
+              BOS Agent Gateway
             </Typography>
           </Box>
           {loggedIn && (
-            <Button
-              size="small"
-              color="inherit"
-              startIcon={<Logout sx={{ fontSize: 16 }} />}
-              onClick={logout}
-              sx={{ color: "text.secondary", "&:hover": { color: "text.primary" } }}
-            >
-              Logout
-            </Button>
+            <>
+              <Button
+                size="small"
+                component="a"
+                href="/redoc"
+                target="_blank"
+                startIcon={<ApiIcon sx={{ fontSize: 16 }} />}
+                sx={{
+                  color: "#5B738B",
+                  minWidth: 0,
+                  mr: 0.5,
+                  fontSize: "0.75rem",
+                  "&:hover": { color: "#1D2D3E", backgroundColor: "rgba(0,0,0,0.04)" },
+                }}
+              >
+                API
+              </Button>
+              <Button
+                size="small"
+                component="a"
+                href="https://github.com/wangjunneil"
+                target="_blank"
+                startIcon={<GitHub sx={{ fontSize: 16 }} />}
+                sx={{
+                  color: "#5B738B",
+                  minWidth: 0,
+                  mr: 0.5,
+                  fontSize: "0.75rem",
+                  "&:hover": { color: "#1D2D3E", backgroundColor: "rgba(0,0,0,0.04)" },
+                }}
+              >
+                GitHub
+              </Button>
+              <Button
+                size="small"
+                color="inherit"
+                startIcon={<Logout sx={{ fontSize: 16 }} />}
+                onClick={logout}
+                sx={{
+                  color: "#5B738B",
+                  minWidth: 0,
+                  "&:hover": { color: "#1D2D3E", backgroundColor: "rgba(0,0,0,0.04)" },
+                }}
+              >
+                Logout
+              </Button>
+            </>
           )}
         </Toolbar>
 
@@ -198,9 +253,24 @@ export default function App() {
       {loggedIn && (
         <Fade in timeout={300}>
           <Container maxWidth="lg" sx={{ py: 4 }}>
-            {tab === 0 && <DashboardPage notify={notify} />}
-            {tab === 1 && <AgentsPage notify={notify} />}
-            {tab === 2 && <UsersPage notify={notify} />}
+            {agentDetail ? (
+              <AgentDetail
+                agentId={agentDetail.agentId}
+                agentName={agentDetail.agentName}
+                onBack={() => setAgentDetail(null)}
+              />
+            ) : (
+              <>
+                {tab === 0 && (
+                  <DashboardPage
+                    notify={notify}
+                    onAgentClick={(agentId, agentName) => setAgentDetail({ agentId, agentName })}
+                  />
+                )}
+                {tab === 1 && <AgentsPage notify={notify} />}
+                {tab === 2 && <UsersPage notify={notify} />}
+              </>
+            )}
           </Container>
         </Fade>
       )}

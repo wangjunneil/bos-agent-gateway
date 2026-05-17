@@ -3,59 +3,71 @@ import { createRoot } from "react-dom/client";
 import { ThemeProvider, createTheme, CssBaseline } from "@mui/material";
 import App from "./App.jsx";
 
+const SAP_BLUE = "#0070F2";
+const SAP_BLUE_DARK = "#0057B8";
+const SAP_BLUE_LIGHT = "#4A90E2";
+
 const theme = createTheme({
   palette: {
-    mode: "dark",
+    mode: "light",
     background: {
-      default: "#0f1117",
-      paper: "#181a20",
+      default: "#F5F6F7",
+      paper: "#FFFFFF",
     },
     primary: {
-      main: "#6366f1",
-      light: "#818cf8",
-      dark: "#4f46e5",
+      main: SAP_BLUE,
+      light: SAP_BLUE_LIGHT,
+      dark: SAP_BLUE_DARK,
     },
     secondary: {
-      main: "#a78bfa",
+      main: "#475E75",
+      light: "#6B8299",
+      dark: "#344556",
     },
     success: {
-      main: "#22c55e",
-      dark: "#16a34a",
+      main: "#188918",
+      dark: "#0F6A0F",
     },
     warning: {
-      main: "#f59e0b",
-      dark: "#d97706",
+      main: "#E78B07",
+      dark: "#B26D05",
     },
     error: {
-      main: "#ef4444",
-      dark: "#dc2626",
+      main: "#D9364B",
+      dark: "#AA2A3A",
     },
     info: {
-      main: "#3b82f6",
+      main: SAP_BLUE,
     },
-    divider: "rgba(255,255,255,0.06)",
+    divider: "#D5DADD",
     text: {
-      primary: "#e4e4e7",
-      secondary: "#a1a1aa",
+      primary: "#1D2D3E",
+      secondary: "#5B738B",
     },
   },
   typography: {
-    fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
-    h4: { fontWeight: 700, letterSpacing: "-0.02em" },
+    fontFamily: "'Inter', '72', system-ui, -apple-system, sans-serif",
+    h4: { fontWeight: 700, letterSpacing: "-0.01em", color: "#1D2D3E" },
     h5: { fontWeight: 700, letterSpacing: "-0.01em" },
     h6: { fontWeight: 600, letterSpacing: "-0.01em" },
-    subtitle1: { fontWeight: 600 },
-    subtitle2: { fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem", letterSpacing: "0.08em", color: "#a1a1aa" },
-    caption: { color: "#71717a" },
+    subtitle1: { fontWeight: 600, color: "#1D2D3E" },
+    subtitle2: {
+      fontWeight: 600,
+      textTransform: "uppercase",
+      fontSize: "0.7rem",
+      letterSpacing: "0.08em",
+      color: "#5B738B",
+    },
+    caption: { color: "#7D8D9E" },
     button: { fontWeight: 600, textTransform: "none" },
   },
   shape: {
-    borderRadius: 10,
+    borderRadius: 6,
   },
   components: {
     MuiCssBaseline: {
       styleOverrides: {
-        body: { backgroundColor: "#0f1117" },
+        body: { backgroundColor: "#F5F6F7" },
       },
     },
     MuiPaper: {
@@ -63,7 +75,8 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: "none",
-          border: "1px solid rgba(255,255,255,0.06)",
+          border: "1px solid #D5DADD",
+          borderRadius: 6,
         },
       },
     },
@@ -72,12 +85,12 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: "none",
-          backgroundColor: "#181a20",
-          border: "1px solid rgba(255,255,255,0.06)",
-          transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+          backgroundColor: "#FFFFFF",
+          border: "1px solid #D5DADD",
+          borderRadius: 6,
+          transition: "box-shadow 0.15s ease",
           "&:hover": {
-            borderColor: "rgba(255,255,255,0.12)",
-            boxShadow: "0 4px 24px rgba(0,0,0,0.2)",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
           },
         },
       },
@@ -85,21 +98,31 @@ const theme = createTheme({
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
-          padding: "6px 16px",
-          transition: "all 0.15s ease",
+          borderRadius: 4,
+          padding: "5px 14px",
+          transition: "all 0.1s ease",
+          fontSize: "0.8125rem",
         },
         contained: {
           boxShadow: "none",
+          backgroundColor: SAP_BLUE,
           "&:hover": {
-            boxShadow: "0 0 20px rgba(99,102,241,0.3)",
+            boxShadow: "none",
+            backgroundColor: SAP_BLUE_DARK,
           },
         },
         outlined: {
-          borderColor: "rgba(255,255,255,0.12)",
+          borderColor: "#C5C9CE",
+          color: "#1D2D3E",
           "&:hover": {
-            borderColor: "rgba(255,255,255,0.24)",
-            backgroundColor: "rgba(255,255,255,0.04)",
+            borderColor: "#A8B0B8",
+            backgroundColor: "rgba(0,0,0,0.02)",
+          },
+        },
+        text: {
+          color: SAP_BLUE,
+          "&:hover": {
+            backgroundColor: "rgba(0,112,242,0.06)",
           },
         },
       },
@@ -107,9 +130,11 @@ const theme = createTheme({
     MuiIconButton: {
       styleOverrides: {
         root: {
-          transition: "all 0.15s ease",
+          transition: "all 0.1s ease",
+          color: "#5B738B",
           "&:hover": {
-            backgroundColor: "rgba(255,255,255,0.06)",
+            backgroundColor: "rgba(0,0,0,0.04)",
+            color: "#1D2D3E",
           },
         },
       },
@@ -119,9 +144,15 @@ const theme = createTheme({
         root: {
           fontWeight: 500,
           fontSize: "0.75rem",
+          borderRadius: 4,
         },
         outlined: {
-          borderColor: "rgba(255,255,255,0.12)",
+          borderColor: "#D5DADD",
+          color: "#475E75",
+        },
+        filled: {
+          backgroundColor: "rgba(0,112,242,0.08)",
+          color: SAP_BLUE_DARK,
         },
       },
     },
@@ -130,10 +161,21 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           "& .MuiOutlinedInput-root": {
-            backgroundColor: "rgba(255,255,255,0.03)",
-            "&:hover .MuiOutlinedInput-notchedOutline": {
-              borderColor: "rgba(255,255,255,0.2)",
+            backgroundColor: "#FFFFFF",
+            borderRadius: 4,
+            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+              borderColor: SAP_BLUE,
+              borderWidth: 1,
             },
+            "&:hover .MuiOutlinedInput-notchedOutline": {
+              borderColor: "#A8B0B8",
+            },
+            "& .MuiOutlinedInput-notchedOutline": {
+              borderColor: "#C5C9CE",
+            },
+          },
+          "& .MuiInputLabel-root.Mui-focused": {
+            color: SAP_BLUE,
           },
         },
       },
@@ -141,31 +183,42 @@ const theme = createTheme({
     MuiDialog: {
       styleOverrides: {
         paper: {
-          backgroundColor: "#1e2028",
-          border: "1px solid rgba(255,255,255,0.08)",
+          backgroundColor: "#FFFFFF",
+          border: "1px solid #D5DADD",
+          borderRadius: 8,
+          boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
         },
       },
     },
     MuiTableCell: {
       styleOverrides: {
         root: {
-          borderColor: "rgba(255,255,255,0.04)",
+          borderColor: "#EDEFF2",
+          padding: "10px 16px",
         },
         head: {
           fontWeight: 600,
           fontSize: "0.7rem",
           textTransform: "uppercase",
           letterSpacing: "0.08em",
-          color: "#a1a1aa",
+          color: "#5B738B",
+          backgroundColor: "#F5F6F7",
+          borderBottom: "2px solid #D5DADD",
         },
       },
     },
     MuiTableRow: {
       styleOverrides: {
         root: {
-          transition: "background-color 0.15s ease",
+          transition: "background-color 0.1s ease",
           "&:hover": {
-            backgroundColor: "rgba(255,255,255,0.02)",
+            backgroundColor: "#F5F6F7",
+          },
+          "&:nth-of-type(even)": {
+            backgroundColor: "#FAFAFB",
+          },
+          "&:nth-of-type(even):hover": {
+            backgroundColor: "#F5F6F7",
           },
         },
       },
@@ -177,7 +230,11 @@ const theme = createTheme({
           fontSize: "0.85rem",
           textTransform: "none",
           minHeight: 44,
+          color: "#5B738B",
           transition: "color 0.15s ease",
+          "&.Mui-selected": {
+            color: SAP_BLUE,
+          },
         },
       },
     },
@@ -185,7 +242,8 @@ const theme = createTheme({
       styleOverrides: {
         indicator: {
           height: 2,
-          borderRadius: 1,
+          backgroundColor: SAP_BLUE,
+          borderRadius: 0,
         },
       },
     },
@@ -193,7 +251,7 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           "& .MuiSwitch-track": {
-            backgroundColor: "rgba(255,255,255,0.15)",
+            backgroundColor: "#C5C9CE",
           },
         },
       },
@@ -201,8 +259,14 @@ const theme = createTheme({
     MuiSlider: {
       styleOverrides: {
         root: {
+          color: SAP_BLUE,
           "& .MuiSlider-track": {
             border: "none",
+          },
+          "& .MuiSlider-thumb": {
+            "&.Mui-active": {
+              boxShadow: `0 0 0 8px rgba(0,112,242,0.12)`,
+            },
           },
         },
       },
@@ -210,15 +274,33 @@ const theme = createTheme({
     MuiAlert: {
       styleOverrides: {
         root: {
-          borderRadius: 10,
+          borderRadius: 6,
         },
       },
     },
     MuiListItem: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
-          transition: "background-color 0.15s ease",
+          borderRadius: 4,
+          transition: "background-color 0.1s ease",
+        },
+      },
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          backgroundColor: "#FFFFFF",
+          boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
+          borderBottom: "1px solid #D5DADD",
+        },
+      },
+    },
+    MuiTooltip: {
+      styleOverrides: {
+        tooltip: {
+          backgroundColor: "#1D2D3E",
+          borderRadius: 4,
+          fontSize: "0.75rem",
         },
       },
     },

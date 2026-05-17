@@ -55,8 +55,11 @@ export const api = {
     return request(`/v1/agents/${params}`);
   },
   getAgent: (id) => request(`/v1/agents/${id}`),
-  registerAgent: (base_url, tags = []) =>
-    request("/v1/agents/", { method: "POST", body: JSON.stringify({ base_url, tags }) }),
+  registerAgent: (base_url, dify_api_key, tags = []) =>
+    request("/v1/agents/", {
+      method: "POST",
+      body: JSON.stringify({ base_url, dify_api_key, tags }),
+    }),
   updateAgent: (id, data) =>
     request(`/v1/agents/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteAgent: (id) => request(`/v1/agents/${id}`, { method: "DELETE" }),
@@ -81,4 +84,24 @@ export const api = {
 
   getStats: () => request("/v1/stats/"),
   getAgentStats: (id) => request(`/v1/stats/agents/${id}`),
+
+  getAgentUsers: (agentId) => request(`/v1/agents/${agentId}/users`),
+  getConversations: (agentId, user, lastId, limit = 20) => {
+    const params = new URLSearchParams({ user, limit: String(limit) });
+    if (lastId) params.set("last_id", lastId);
+    return request(`/v1/agents/${agentId}/conversations?${params}`);
+  },
+  getMessages: (agentId, user, conversationId) => {
+    const params = new URLSearchParams({ user, conversation_id: conversationId });
+    return request(`/v1/agents/${agentId}/messages?${params}`);
+  },
+  deleteConversation: (agentId, conversationId, user) =>
+    request(`/v1/agents/${agentId}/conversations/${conversationId}?user=${encodeURIComponent(user)}`, {
+      method: "DELETE",
+    }),
+  renameConversation: (agentId, conversationId, name, user) =>
+    request(`/v1/agents/${agentId}/conversations/${conversationId}/name?user=${encodeURIComponent(user)}`, {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
 };

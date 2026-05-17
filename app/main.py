@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.database import init_db
-from app.routers import a2a, agents, stats, users
+from app.routers import agents, proxy, sessions, stats, users
 from app.services.health import health_poll_loop
 from app.settings import settings
 
@@ -56,7 +56,8 @@ app.add_middleware(
 app.include_router(agents.router)
 app.include_router(users.router)
 app.include_router(stats.router)
-app.include_router(a2a.router)
+app.include_router(sessions.router)
+app.include_router(proxy.router)
 
 _frontend_dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 if _frontend_dist.is_dir():

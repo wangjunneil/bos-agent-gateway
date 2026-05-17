@@ -29,18 +29,18 @@ import { api } from "../api";
 const REFRESH_INTERVAL = 30000;
 
 const STATUS_COLORS = {
-  online: "#22c55e",
-  offline: "#71717a",
-  error: "#ef4444",
-  unknown: "#f59e0b",
+  online: "#188918",
+  offline: "#5B738B",
+  error: "#D9364B",
+  unknown: "#E78B07",
 };
 
 const KPI_ACCENTS = {
-  agents: "#22c55e",
-  users: "#6366f1",
-  requests: "#3b82f6",
-  errors: "#ef4444",
-  latency: "#f59e0b",
+  agents: "#188918",
+  users: "#0070F2",
+  requests: "#0070F2",
+  errors: "#D9364B",
+  latency: "#E78B07",
 };
 
 function KpiCard({ title, value, subtitle, accent }) {
@@ -58,7 +58,6 @@ function KpiCard({ title, value, subtitle, accent }) {
           top: 0,
           bottom: 0,
           width: 3,
-          borderRadius: "3px 0 0 3px",
           bgcolor: accent,
         },
       }}
@@ -67,11 +66,11 @@ function KpiCard({ title, value, subtitle, accent }) {
         <Typography variant="subtitle2" sx={{ mb: 1 }}>
           {title}
         </Typography>
-        <Typography variant="h4" sx={{ fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1 }}>
+        <Typography variant="h4" sx={{ fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1, color: "#1D2D3E" }}>
           {value}
         </Typography>
         {subtitle && (
-          <Typography variant="caption" sx={{ mt: 0.5, display: "block", color: "text.secondary" }}>
+          <Typography variant="caption" sx={{ mt: 0.5, display: "block", color: "#7D8D9E" }}>
             {subtitle}
           </Typography>
         )}
@@ -81,9 +80,9 @@ function KpiCard({ title, value, subtitle, accent }) {
 }
 
 function errorRateColor(rate) {
-  if (rate < 5) return "#22c55e";
-  if (rate < 15) return "#f59e0b";
-  return "#ef4444";
+  if (rate < 5) return "#188918";
+  if (rate < 15) return "#E78B07";
+  return "#D9364B";
 }
 
 function StatusDot({ status }) {
@@ -94,7 +93,6 @@ function StatusDot({ status }) {
         height: 8,
         borderRadius: "50%",
         bgcolor: STATUS_COLORS[status] || STATUS_COLORS.unknown,
-        boxShadow: `0 0 6px ${STATUS_COLORS[status] || STATUS_COLORS.unknown}80`,
         display: "inline-block",
         mr: 1,
         flexShrink: 0,
@@ -108,11 +106,12 @@ function CustomTooltip({ active, payload, label }) {
   return (
     <Box
       sx={{
-        bgcolor: "#1e2028",
-        border: "1px solid rgba(255,255,255,0.1)",
-        borderRadius: 1.5,
+        bgcolor: "#FFFFFF",
+        border: "1px solid #D5DADD",
+        borderRadius: 4,
         px: 1.5,
         py: 1,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
       }}
     >
       <Typography variant="caption" color="text.secondary">{label}</Typography>
@@ -121,7 +120,7 @@ function CustomTooltip({ active, payload, label }) {
   );
 }
 
-export default function DashboardPage({ notify }) {
+export default function DashboardPage({ notify, onAgentClick }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const timerRef = useRef(null);
@@ -129,8 +128,14 @@ export default function DashboardPage({ notify }) {
   const load = () => {
     api
       .getStats()
-      .then((data) => { setStats(data); setLoading(false); })
-      .catch((e) => { notify(e.message, "error"); setLoading(false); });
+      .then((data) => {
+        setStats(data);
+        setLoading(false);
+      })
+      .catch((e) => {
+        notify(e.message, "error");
+        setLoading(false);
+      });
   };
 
   useEffect(() => {
@@ -142,7 +147,7 @@ export default function DashboardPage({ notify }) {
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", mt: 10 }}>
-        <CircularProgress sx={{ color: "#6366f1" }} />
+        <CircularProgress sx={{ color: "#0070F2" }} />
       </Box>
     );
   }
@@ -198,32 +203,28 @@ export default function DashboardPage({ notify }) {
             <BarChart data={chartData} barCategoryGap="20%">
               <defs>
                 <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#6366f1" stopOpacity={0.9} />
-                  <stop offset="100%" stopColor="#6366f1" stopOpacity={0.3} />
+                  <stop offset="0%" stopColor="#0070F2" stopOpacity={1} />
+                  <stop offset="100%" stopColor="#0070F2" stopOpacity={0.5} />
                 </linearGradient>
               </defs>
-              <CartesianGrid
-                stroke="rgba(255,255,255,0.04)"
-                strokeDasharray="3 3"
-                vertical={false}
-              />
+              <CartesianGrid stroke="#EDEFF2" strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="hour"
-                tick={{ fontSize: 11, fill: "#71717a" }}
-                axisLine={{ stroke: "rgba(255,255,255,0.06)" }}
+                tick={{ fontSize: 11, fill: "#7D8D9E" }}
+                axisLine={{ stroke: "#D5DADD" }}
                 tickLine={false}
               />
               <YAxis
                 allowDecimals={false}
-                tick={{ fontSize: 11, fill: "#71717a" }}
+                tick={{ fontSize: 11, fill: "#7D8D9E" }}
                 axisLine={false}
                 tickLine={false}
               />
-              <ReTooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+              <ReTooltip content={<CustomTooltip />} cursor={{ fill: "rgba(0,112,242,0.06)" }} />
               <Bar
                 dataKey="count"
                 fill="url(#barGrad)"
-                radius={[5, 5, 0, 0]}
+                radius={[4, 4, 0, 0]}
                 animationDuration={600}
               />
             </BarChart>
@@ -238,11 +239,9 @@ export default function DashboardPage({ notify }) {
       </Paper>
 
       {/* Top Agents Table */}
-      <Paper sx={{ overflow: "hidden" }}>
+      <Paper sx={{ overflow: "hidden", border: "1px solid #D5DADD" }}>
         <Box sx={{ px: 3, pt: 2.5, pb: 1 }}>
-          <Typography variant="subtitle2">
-            Top Agents (7d)
-          </Typography>
+          <Typography variant="subtitle2">Top Agents (7d)</Typography>
         </Box>
         <TableContainer>
           <Table size="small">
@@ -264,14 +263,26 @@ export default function DashboardPage({ notify }) {
                 return (
                   <TableRow key={a.agent_id}>
                     <TableCell>
-                      <Typography variant="body2" fontWeight={500}>
+                      <Typography
+                        variant="body2"
+                        fontWeight={500}
+                        sx={{
+                          color: "#0070F2",
+                          cursor: "pointer",
+                          "&:hover": { textDecoration: "underline" },
+                        }}
+                        onClick={() => onAgentClick?.(a.agent_id, a.agent_name || a.agent_id)}
+                      >
                         {a.agent_name || a.agent_id}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Box sx={{ display: "flex", alignItems: "center" }}>
                         <StatusDot status={a.status} />
-                        <Typography variant="body2" sx={{ color: STATUS_COLORS[a.status] || "#a1a1aa" }}>
+                        <Typography
+                          variant="body2"
+                          sx={{ color: STATUS_COLORS[a.status] || "#5B738B", fontWeight: 500 }}
+                        >
                           {a.status}
                         </Typography>
                       </Box>

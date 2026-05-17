@@ -1,12 +1,10 @@
 import re
 from datetime import datetime
-from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
 # Sentinel to distinguish "field not sent" from "field sent as null"
 _UNSET = object()
-
 
 TAG_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,19}$")
 
@@ -22,11 +20,12 @@ def validate_tags(tags: list[str]) -> list[str]:
                 f"Invalid tag '{t}': only lowercase alphanumeric and hyphens, max 20 chars"
             )
         cleaned.append(t)
-    return list(dict.fromkeys(cleaned))  # deduplicate preserving order
+    return list(dict.fromkeys(cleaned))
 
 
 class AgentCreate(BaseModel):
     base_url: str
+    dify_api_key: str | None = None
     tags: list[str] = []
 
     @field_validator("tags")
@@ -38,6 +37,7 @@ class AgentCreate(BaseModel):
 class AgentUpdate(BaseModel):
     is_public: bool | None = None
     base_url: str | None = None
+    dify_api_key: str | None = None
     tags: list[str] | None = None
 
     @field_validator("tags")
@@ -64,7 +64,7 @@ class AgentResponse(BaseModel):
 
 
 class AgentDetailResponse(AgentResponse):
-    agent_card: dict | None = None
+    agent_info: dict | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -124,6 +124,7 @@ class ErrorResponse(BaseModel):
 
 
 # --- Stats models ---
+
 
 class AgentStats(BaseModel):
     agent_id: str

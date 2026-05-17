@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   CardContent,
+  Checkbox,
   Chip,
   Collapse,
   Dialog,
@@ -30,7 +31,7 @@ import {
   Speed,
   ContentCopy,
 } from "@mui/icons-material";
-import { api } from "../api";
+import { api, setApiKey } from "../api";
 
 const DEFAULT_RPM = 60;
 
@@ -39,23 +40,26 @@ export default function UsersPage({ notify }) {
   const [agents, setAgents] = useState([]);
   const [username, setUsername] = useState("");
   const [expanded, setExpanded] = useState(null);
-  const [newKeyDialog, setNewKeyDialog] = useState(null);
+  const [newKeyDialog, setNewKeyDialog] = useState(null);  // { userId, key, canApply } | null
   const [assignDialog, setAssignDialog] = useState(null);
   const [rateLimitDialog, setRateLimitDialog] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const load = () => {
     api.listUsers().then(setUsers).catch((e) => notify(e.message, "error"));
     api.listAgents().then(setAgents).catch(() => {});
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const create = async () => {
     if (!username.trim()) return;
     try {
       const user = await api.createUser(username.trim());
       setUsername("");
-      setNewKeyDialog(user.api_key);
+      setNewKeyDialog({ userId: user.id, key: user.api_key, canApply: false });
       notify("User created");
       load();
     } catch (e) {
@@ -73,10 +77,16 @@ export default function UsersPage({ notify }) {
     }
   };
 
-  const regenKey = async (id) => {
+  const openKeyDialog = (id) => {
+    setNewKeyDialog({ userId: id, key: null, canApply: true });
+  };
+
+  const regenKey = async () => {
+    const userId = newKeyDialog?.userId;
+    if (!userId) return;
     try {
-      const res = await api.regenerateApiKey(id);
-      setNewKeyDialog(res.api_key);
+      const res = await api.regenerateApiKey(userId);
+      setNewKeyDialog({ userId, key: res.api_key });
       notify("API key regenerated");
     } catch (e) {
       notify(e.message, "error");
@@ -122,8 +132,17 @@ export default function UsersPage({ notify }) {
                   size="small"
                   sx={
                     u.role === "admin"
-                      ? { bgcolor: "rgba(99,102,241,0.15)", color: "#818cf8", fontWeight: 600, border: "none" }
-                      : { bgcolor: "rgba(255,255,255,0.06)", color: "text.secondary", border: "none" }
+                      ? {
+                          bgcolor: "rgba(0,112,242,0.08)",
+                          color: "#0057B8",
+                          fontWeight: 600,
+                          border: "1px solid rgba(0,112,242,0.2)",
+                        }
+                      : {
+                          bgcolor: "#F5F6F7",
+                          color: "#5B738B",
+                          border: "1px solid #D5DADD",
+                        }
                   }
                 />
 
@@ -135,20 +154,28 @@ export default function UsersPage({ notify }) {
                     gap: 0.75,
                     px: 1.5,
                     py: 0.4,
-                    borderRadius: "20px",
-                    bgcolor: u.is_active ? "rgba(34,197,94,0.1)" : "rgba(113,113,122,0.1)",
+                    borderRadius: "4px",
+                    bgcolor: u.is_active ? "rgba(24,137,24,0.08)" : "rgba(91,115,139,0.08)",
                     border: "1px solid",
-                    borderColor: u.is_active ? "rgba(34,197,94,0.2)" : "rgba(113,113,122,0.2)",
+                    borderColor: u.is_active ? "rgba(24,137,24,0.2)" : "rgba(91,115,139,0.2)",
                   }}
                 >
                   <Box
                     sx={{
-                      width: 7, height: 7, borderRadius: "50%",
-                      bgcolor: u.is_active ? "#22c55e" : "#71717a",
-                      boxShadow: u.is_active ? "0 0 6px rgba(34,197,94,0.6)" : "none",
+                      width: 7,
+                      height: 7,
+                      borderRadius: "50%",
+                      bgcolor: u.is_active ? "#188918" : "#5B738B",
                     }}
                   />
-                  <Typography variant="caption" sx={{ fontWeight: 600, color: u.is_active ? "#22c55e" : "#71717a", lineHeight: 1 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontWeight: 600,
+                      color: u.is_active ? "#188918" : "#5B738B",
+                      lineHeight: 1,
+                    }}
+                  >
                     {u.is_active ? "Active" : "Inactive"}
                   </Typography>
                 </Box>
@@ -161,22 +188,24 @@ export default function UsersPage({ notify }) {
                   onClick={() => setRateLimitDialog(u)}
                   sx={{
                     cursor: "pointer",
-                    bgcolor: u.rate_limit != null ? "rgba(245,158,11,0.12)" : "transparent",
-                    color: u.rate_limit != null ? "#f59e0b" : "text.secondary",
+                    bgcolor: u.rate_limit != null ? "rgba(231,139,7,0.08)" : "transparent",
+                    color: u.rate_limit != null ? "#B26D05" : "#5B738B",
                     border: "1px solid",
-                    borderColor: u.rate_limit != null ? "rgba(245,158,11,0.25)" : "rgba(255,255,255,0.1)",
+                    borderColor: u.rate_limit != null ? "rgba(231,139,7,0.2)" : "#D5DADD",
                     fontWeight: 600,
                     "&:hover": {
-                      bgcolor: u.rate_limit != null ? "rgba(245,158,11,0.18)" : "rgba(255,255,255,0.04)",
+                      bgcolor: u.rate_limit != null
+                        ? "rgba(231,139,7,0.12)"
+                        : "rgba(0,0,0,0.04)",
                     },
                   }}
                 />
 
                 <IconButton
                   size="small"
-                  onClick={() => regenKey(u.id)}
+                  onClick={() => openKeyDialog(u.id)}
                   title="Regenerate API Key"
-                  sx={{ color: "text.secondary", "&:hover": { color: "primary.light" } }}
+                  sx={{ color: "#5B738B", "&:hover": { color: "#0070F2" } }}
                 >
                   <Key sx={{ fontSize: 18 }} />
                 </IconButton>
@@ -193,13 +222,17 @@ export default function UsersPage({ notify }) {
                 <IconButton
                   size="small"
                   onClick={() => remove(u.id)}
-                  sx={{ color: "error.main", opacity: 0.6, "&:hover": { opacity: 1 } }}
+                  sx={{
+                    color: "#D9364B",
+                    opacity: 0.6,
+                    "&:hover": { opacity: 1, backgroundColor: "rgba(217,54,75,0.08)" },
+                  }}
                 >
                   <Delete sx={{ fontSize: 18 }} />
                 </IconButton>
               </Stack>
 
-              <Collapse in={expanded === u.id} timeout={200}>
+              <Collapse in={expanded === u.id} timeout={200} key={`${u.id}-${refreshKey}`}>
                 <UserAgents
                   userId={u.id}
                   allAgents={agents}
@@ -221,34 +254,64 @@ export default function UsersPage({ notify }) {
       <Dialog open={!!newKeyDialog} onClose={() => setNewKeyDialog(null)} maxWidth="sm" fullWidth>
         <DialogTitle>API Key</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Copy this key now. It will not be shown again.
-          </Typography>
-          <TextField
-            fullWidth
-            value={newKeyDialog || ""}
-            InputProps={{
-              readOnly: true,
-              sx: { fontFamily: "monospace", fontSize: "0.85rem" },
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton
-                    onClick={() => {
-                      navigator.clipboard.writeText(newKeyDialog);
-                      notify("Copied to clipboard");
-                    }}
-                    size="small"
-                  >
-                    <ContentCopy sx={{ fontSize: 16 }} />
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-            onFocus={(e) => e.target.select()}
-          />
+          {newKeyDialog?.key ? (
+            <>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Copy this key now. It will not be shown again.
+              </Typography>
+              <TextField
+                fullWidth
+                value={newKeyDialog.key}
+                InputProps={{
+                  readOnly: true,
+                  sx: { fontFamily: "monospace", fontSize: "0.85rem" },
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => {
+                          navigator.clipboard.writeText(newKeyDialog.key);
+                          notify("Copied to clipboard");
+                        }}
+                        size="small"
+                      >
+                        <ContentCopy sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+                onFocus={(e) => e.target.select()}
+              />
+            </>
+          ) : (
+            <Box sx={{ textAlign: "center", py: 2 }}>
+              <Key sx={{ fontSize: 40, color: "#5B738B", mb: 1.5 }} />
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                API keys cannot be retrieved after creation.<br />
+                Generate a new key to replace the current one.
+              </Typography>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setNewKeyDialog(null)}>Close</Button>
+          <Button onClick={() => setNewKeyDialog(null)} sx={{ color: "text.secondary" }}>
+            Close
+          </Button>
+          {newKeyDialog?.key && newKeyDialog?.canApply ? (
+            <Button
+              variant="contained"
+              onClick={() => {
+                setApiKey(newKeyDialog.key);
+                setNewKeyDialog(null);
+                notify("API key applied to current session");
+              }}
+            >
+              Apply &amp; Close
+            </Button>
+          ) : (
+            <Button variant="contained" onClick={regenKey}>
+              Generate New Key
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 
@@ -256,7 +319,11 @@ export default function UsersPage({ notify }) {
         <AssignDialog
           userId={assignDialog}
           agents={agents}
-          onClose={() => { setAssignDialog(null); load(); }}
+          onClose={() => {
+            setAssignDialog(null);
+            setRefreshKey((k) => k + 1);
+            load();
+          }}
           notify={notify}
         />
       )}
@@ -264,7 +331,10 @@ export default function UsersPage({ notify }) {
       {rateLimitDialog && (
         <RateLimitDialog
           user={rateLimitDialog}
-          onClose={() => { setRateLimitDialog(null); load(); }}
+          onClose={() => {
+            setRateLimitDialog(null);
+            load();
+          }}
           notify={notify}
         />
       )}
@@ -274,9 +344,7 @@ export default function UsersPage({ notify }) {
 
 function RateLimitDialog({ user, onClose, notify }) {
   const [value, setValue] = useState(user.rate_limit ?? DEFAULT_RPM);
-  const [preset, setPreset] = useState(
-    user.rate_limit == null ? "default" : "custom"
-  );
+  const [preset, setPreset] = useState(user.rate_limit == null ? "default" : "custom");
 
   const presets = [
     { label: `Default (${DEFAULT_RPM})`, key: "default", val: null },
@@ -325,7 +393,10 @@ function RateLimitDialog({ user, onClose, notify }) {
         <Stack direction="row" spacing={2} alignItems="center">
           <Slider
             value={value}
-            onChange={(_, v) => { setValue(v); setPreset("custom"); }}
+            onChange={(_, v) => {
+              setValue(v);
+              setPreset("custom");
+            }}
             min={1}
             max={300}
             step={1}
@@ -344,7 +415,7 @@ function RateLimitDialog({ user, onClose, notify }) {
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose} variant="outlined">Cancel</Button>
         <Button variant="contained" onClick={save}>Save</Button>
       </DialogActions>
     </Dialog>
@@ -372,7 +443,11 @@ function UserAgents({ userId, allAgents, notify, onAssignOpen }) {
     <Box sx={{ mt: 2 }}>
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
         <Typography variant="subtitle2">Assigned Agents</Typography>
-        <IconButton size="small" onClick={onAssignOpen} sx={{ color: "primary.light" }}>
+        <IconButton
+          size="small"
+          onClick={onAssignOpen}
+          sx={{ color: "#0070F2", "&:hover": { color: "#0057B8" } }}
+        >
           <Add sx={{ fontSize: 18 }} />
         </IconButton>
       </Stack>
@@ -386,21 +461,24 @@ function UserAgents({ userId, allAgents, notify, onAssignOpen }) {
                   edge="end"
                   size="small"
                   onClick={() => removeAccess(a.id)}
-                  sx={{ color: "text.secondary", "&:hover": { color: "error.main" } }}
+                  sx={{ color: "#5B738B", "&:hover": { color: "#D9364B" } }}
                 >
                   <LinkOff sx={{ fontSize: 16 }} />
                 </IconButton>
               }
               sx={{
-                borderRadius: 1.5,
-                "&:hover": { bgcolor: "rgba(255,255,255,0.03)" },
+                borderRadius: 1,
+                "&:hover": { bgcolor: "#F5F6F7" },
               }}
             >
               <ListItemText
                 primary={a.name || a.base_url}
                 secondary={a.base_url}
                 primaryTypographyProps={{ variant: "body2", fontWeight: 500 }}
-                secondaryTypographyProps={{ variant: "caption", sx: { fontFamily: "monospace", fontSize: "0.7rem" } }}
+                secondaryTypographyProps={{
+                  variant: "caption",
+                  sx: { fontFamily: "monospace", fontSize: "0.7rem" },
+                }}
               />
             </ListItem>
           ))}
@@ -418,9 +496,7 @@ function AssignDialog({ userId, agents, onClose, notify }) {
   const [selected, setSelected] = useState([]);
 
   const toggle = (id) =>
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const assign = async () => {
     if (!selected.length) return;
@@ -441,18 +517,20 @@ function AssignDialog({ userId, agents, onClose, notify }) {
           {agents.map((a) => (
             <ListItem
               key={a.id}
-              button
-              selected={selected.includes(a.id)}
               onClick={() => toggle(a.id)}
               sx={{
-                borderRadius: 1.5,
+                borderRadius: 1,
                 mb: 0.5,
-                "&.Mui-selected": {
-                  bgcolor: "rgba(99,102,241,0.12)",
-                  "&:hover": { bgcolor: "rgba(99,102,241,0.18)" },
-                },
+                cursor: "pointer",
+                bgcolor: selected.includes(a.id) ? "rgba(0,112,242,0.06)" : "transparent",
+                "&:hover": { bgcolor: selected.includes(a.id) ? "rgba(0,112,242,0.1)" : "#F5F6F7" },
               }}
             >
+              <Checkbox
+                checked={selected.includes(a.id)}
+                size="small"
+                sx={{ mr: 1, py: 0 }}
+              />
               <ListItemText
                 primary={a.name || a.base_url}
                 primaryTypographyProps={{ variant: "body2", fontWeight: 500 }}
@@ -467,7 +545,7 @@ function AssignDialog({ userId, agents, onClose, notify }) {
         </List>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose} variant="outlined">Cancel</Button>
         <Button variant="contained" onClick={assign} disabled={!selected.length}>
           Assign
         </Button>

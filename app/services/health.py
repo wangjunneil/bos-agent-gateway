@@ -7,7 +7,7 @@ import httpx
 from sqlalchemy import select
 
 from app.database import Agent, async_session
-from app.services.agent_card import validate_agent_card
+from app.services.dify import DifyError, fetch_dify_info
 from app.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -33,20 +33,17 @@ async def _poll_all_agents() -> None:
     if not agents:
         return
 
-    await asyncio.gather(*[_check_agent(a.id, a.base_url) for a in agents])
+    await asyncio.gather(*[_check_agent(a.id, a.base_url, a.dify_api_key) for a in agents])
 
 
-async def _check_agent(agent_id: str, base_url: str) -> None:
+async def _check_agent(agent_id: str, base_url: str, api_key: str | None) -> None:
     now = datetime.now(UTC)
 
-    try:
-        url = f"{base_url.rstrip('/')}/.well-known/agent-card.json"
-        async with httpx.AsyncClient(timeout=settings.HEALTH_POLL_TIMEOUT_SECONDS) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            card = resp.json()
+    if not api_key:
+        return
 
-        validate_agent_card(card)
+    try:
+        info = await fetch_dify_info(base_url, api_key)
 
         async with async_session() as session:
             result = await session.execute(select(Agent).where(Agent.id == agent_id))
@@ -55,12 +52,14 @@ async def _check_agent(agent_id: str, base_url: str) -> None:
                 agent.status = "online"
                 agent.status_message = None
                 agent.last_seen = now
-                agent.agent_card = json.dumps(card)
+                agent.agent_info = json.dumps(info, ensure_ascii=False)
+                agent.name = info.get("name")
+                agent.description = info.get("description")
                 agent.updated_at = now
                 await session.commit()
 
-    except httpx.HTTPStatusError as exc:
-        await _set_agent_status(agent_id, "error", f"HTTP {exc.response.status_code}", now)
+    except DifyError as exc:
+        await _set_agent_status(agent_id, "error", exc.message, now)
     except (httpx.ConnectError, httpx.TimeoutException) as exc:
         await _set_agent_status(agent_id, "offline", str(exc), now)
     except Exception as exc:

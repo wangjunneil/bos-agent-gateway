@@ -4,7 +4,6 @@ import {
   Button,
   Card,
   CardContent,
-  Chip,
   Collapse,
   Dialog,
   DialogTitle,
@@ -23,24 +22,26 @@ import {
   Add,
   Delete,
   ExpandMore,
-  ExpandLess,
-  Clear,
   ContentCopy,
+  Edit,
+  Check,
+  Close,
+  VpnKey as VpnKeyIcon,
 } from "@mui/icons-material";
 import { api } from "../api";
 
 const STATUS_COLORS = {
-  online: "#22c55e",
-  offline: "#71717a",
-  error: "#ef4444",
-  unknown: "#f59e0b",
+  online: "#188918",
+  offline: "#5B738B",
+  error: "#D9364B",
+  unknown: "#E78B07",
 };
 
 const STATUS_BG = {
-  online: "rgba(34,197,94,0.1)",
-  offline: "rgba(113,113,122,0.1)",
-  error: "rgba(239,68,68,0.1)",
-  unknown: "rgba(245,158,11,0.1)",
+  online: "rgba(24,137,24,0.08)",
+  offline: "rgba(91,115,139,0.08)",
+  error: "rgba(217,54,75,0.08)",
+  unknown: "rgba(231,139,7,0.08)",
 };
 
 function StatusBadge({ status }) {
@@ -52,7 +53,7 @@ function StatusBadge({ status }) {
         gap: 0.75,
         px: 1.5,
         py: 0.4,
-        borderRadius: "20px",
+        borderRadius: "4px",
         bgcolor: STATUS_BG[status] || STATUS_BG.unknown,
         border: "1px solid",
         borderColor: `${STATUS_COLORS[status] || STATUS_COLORS.unknown}30`,
@@ -64,12 +65,15 @@ function StatusBadge({ status }) {
           height: 7,
           borderRadius: "50%",
           bgcolor: STATUS_COLORS[status] || STATUS_COLORS.unknown,
-          boxShadow: `0 0 6px ${STATUS_COLORS[status] || STATUS_COLORS.unknown}80`,
         }}
       />
       <Typography
         variant="caption"
-        sx={{ fontWeight: 600, color: STATUS_COLORS[status] || STATUS_COLORS.unknown, lineHeight: 1 }}
+        sx={{
+          fontWeight: 600,
+          color: STATUS_COLORS[status] || STATUS_COLORS.unknown,
+          lineHeight: 1,
+        }}
       >
         {status}
       </Typography>
@@ -79,28 +83,28 @@ function StatusBadge({ status }) {
 
 export default function AgentsPage({ notify }) {
   const [agents, setAgents] = useState([]);
-  const [url, setUrl] = useState("");
+  const [difyUrl, setDifyUrl] = useState("");
+  const [difyApiKey, setDifyApiKey] = useState("");
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(null);
-  const [allTags, setAllTags] = useState([]);
-  const [filterTags, setFilterTags] = useState([]);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   const load = () => {
-    const tagFilter = filterTags.length > 0 ? filterTags.join(",") : undefined;
-    api.listAgents(tagFilter).then(setAgents).catch((e) => notify(e.message, "error"));
-    api.listTags().then(setAllTags).catch(() => {});
+    api.listAgents().then(setAgents).catch((e) => notify(e.message, "error"));
   };
 
-  useEffect(() => { load(); }, [filterTags]);
+  useEffect(() => {
+    load();
+  }, []);
 
   const register = async () => {
-    if (!url.trim()) return;
+    if (!difyUrl.trim() || !difyApiKey.trim()) return;
     setLoading(true);
     try {
-      await api.registerAgent(url.trim());
-      setUrl("");
-      notify("Agent registered");
+      await api.registerAgent(difyUrl.trim(), difyApiKey.trim());
+      setDifyUrl("");
+      setDifyApiKey("");
+      notify("Dify app registered");
       load();
     } catch (e) {
       if (e.validationErrors?.length) {
@@ -133,14 +137,8 @@ export default function AgentsPage({ notify }) {
     }
   };
 
-  const toggleFilter = (tag) => {
-    setFilterTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
-  };
-
   const copyGatewayUrl = (id) => {
-    navigator.clipboard.writeText(`${window.location.origin}/a2a/${id}`);
+    navigator.clipboard.writeText(`${window.location.origin}/agent/${id}/`);
     notify("Gateway URL copied");
   };
 
@@ -149,55 +147,49 @@ export default function AgentsPage({ notify }) {
       {/* Register Bar */}
       <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
         <TextField
-          fullWidth
-          placeholder="https://agent.example.com"
-          label="Agent Base URL"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
+          size="small"
+          sx={{ flex: 4 }}
+          placeholder="https://xxx.xxx.xxx/v1"
+          label="BASE URL"
+          value={difyUrl}
+          onChange={(e) => setDifyUrl(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && register()}
+          InputProps={{
+            sx: { fontSize: "0.8rem" },
+            startAdornment: (
+              <InputAdornment position="start">
+                <VpnKeyIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+              </InputAdornment>
+            ),
+          }}
+        />
+        <TextField
+          size="small"
+          sx={{ flex: 2 }}
+          placeholder="app-xxxxxxxxxxxx"
+          label="API Key"
+          value={difyApiKey}
+          onChange={(e) => setDifyApiKey(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && register()}
+          InputProps={{
+            sx: { fontSize: "0.8rem" },
+            startAdornment: (
+              <InputAdornment position="start">
+                <VpnKeyIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+              </InputAdornment>
+            ),
+          }}
         />
         <Button
           variant="contained"
           startIcon={<Add />}
           onClick={register}
           disabled={loading}
-          sx={{ whiteSpace: "nowrap", px: 3 }}
+          sx={{ whiteSpace: "nowrap", px: 3, display: "flex", alignItems: "center", gap: 0.5 }}
         >
           Register
         </Button>
       </Stack>
-
-      {/* Tag Filter */}
-      {allTags.length > 0 && (
-        <Box sx={{ mb: 3 }}>
-          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap alignItems="center">
-            <Typography variant="subtitle2" sx={{ mr: 0.5 }}>
-              Filter:
-            </Typography>
-            {allTags.map((t) => (
-              <Chip
-                key={t.tag}
-                label={`${t.tag} (${t.count})`}
-                size="small"
-                variant={filterTags.includes(t.tag) ? "filled" : "outlined"}
-                color={filterTags.includes(t.tag) ? "primary" : "default"}
-                onClick={() => toggleFilter(t.tag)}
-                sx={{ cursor: "pointer" }}
-              />
-            ))}
-            {filterTags.length > 0 && (
-              <Button
-                size="small"
-                startIcon={<Clear sx={{ fontSize: 14 }} />}
-                onClick={() => setFilterTags([])}
-                sx={{ color: "text.secondary" }}
-              >
-                Clear
-              </Button>
-            )}
-          </Stack>
-        </Box>
-      )}
 
       {/* Agent Cards */}
       <Stack spacing={2}>
@@ -212,46 +204,49 @@ export default function AgentsPage({ notify }) {
             <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
               <Stack direction="row" alignItems="center" spacing={2}>
                 <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 0.5 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                      {a.name || a.base_url}
-                    </Typography>
-                    {a.tags?.map((t) => (
-                      <Chip
-                        key={t}
-                        label={t}
-                        size="small"
-                        variant="outlined"
-                        color="primary"
-                        onClick={() => toggleFilter(t)}
-                        sx={{
-                          cursor: "pointer",
-                          height: 22,
-                          fontSize: "0.7rem",
-                          "& .MuiChip-label": { px: 1 },
-                        }}
-                      />
-                    ))}
-                  </Stack>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5, fontSize: "0.8rem" }}>
+                    {a.name || a.base_url}
+                  </Typography>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
                     <Typography
                       variant="caption"
                       sx={{
                         color: "text.secondary",
                         fontFamily: "monospace",
-                        fontSize: "0.72rem",
+                        fontSize: "0.7rem",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {`${window.location.origin}/a2a/${a.id}`}
+                      {`${window.location.origin}/agent/${a.id}/`}
                     </Typography>
                     <Tooltip title="Copy gateway URL" arrow>
                       <IconButton size="small" onClick={() => copyGatewayUrl(a.id)} sx={{ p: 0.3 }}>
-                        <ContentCopy sx={{ fontSize: 13, color: "text.secondary" }} />
+                        <ContentCopy sx={{ fontSize: 13 }} />
                       </IconButton>
                     </Tooltip>
+                  </Stack>
+                  <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mt: 0.3 }}>
+                    <Typography
+                      variant="caption"
+                      component="a"
+                      href={a.base_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      sx={{
+                        color: "text.secondary",
+                        fontFamily: "monospace",
+                        fontSize: "0.7rem",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        textDecoration: "none",
+                        "&:hover": { color: "primary.main", textDecoration: "underline" },
+                      }}
+                    >
+                      {a.base_url}
+                    </Typography>
                   </Stack>
                 </Box>
 
@@ -261,7 +256,11 @@ export default function AgentsPage({ notify }) {
                   control={
                     <Switch checked={a.is_public} onChange={() => togglePublic(a)} size="small" />
                   }
-                  label={<Typography variant="caption" color="text.secondary">Public</Typography>}
+                  label={
+                    <Typography variant="caption" color="text.secondary">
+                      Public
+                    </Typography>
+                  }
                   sx={{ ml: 0 }}
                 />
                 <IconButton
@@ -277,34 +276,25 @@ export default function AgentsPage({ notify }) {
                 <IconButton
                   size="small"
                   onClick={() => setConfirmDelete(a)}
-                  sx={{ color: "error.main", opacity: 0.6, "&:hover": { opacity: 1 } }}
+                  sx={{
+                    color: "#D9364B",
+                    opacity: 0.6,
+                    "&:hover": { opacity: 1, backgroundColor: "rgba(217,54,75,0.08)" },
+                  }}
                 >
                   <Delete sx={{ fontSize: 18 }} />
                 </IconButton>
               </Stack>
 
-              {a.description && (
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  {a.description}
-                </Typography>
-              )}
-              {a.last_seen && (
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-                  Last seen: {new Date(a.last_seen).toLocaleString()}
-                </Typography>
-              )}
-
               <Collapse in={expanded === a.id} timeout={200}>
-                <AgentCardView agentId={a.id} notify={notify} onTagsChanged={load} />
+                <AgentCardView agentId={a.id} notify={notify} onChanged={load} />
               </Collapse>
             </CardContent>
           </Card>
         ))}
         {agents.length === 0 && (
           <Box sx={{ py: 8, textAlign: "center" }}>
-            <Typography color="text.secondary">
-              No agents registered yet.
-            </Typography>
+            <Typography color="text.secondary">No agents registered yet.</Typography>
           </Box>
         )}
       </Stack>
@@ -314,12 +304,15 @@ export default function AgentsPage({ notify }) {
         <DialogTitle>Delete Agent</DialogTitle>
         <DialogContent>
           <Typography variant="body2">
-            Are you sure you want to delete <strong>{confirmDelete?.name || confirmDelete?.base_url}</strong>?
-            This action cannot be undone.
+            Are you sure you want to delete{" "}
+            <strong>{confirmDelete?.name || confirmDelete?.base_url}</strong>? This action cannot be
+            undone.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmDelete(null)}>Cancel</Button>
+          <Button onClick={() => setConfirmDelete(null)} variant="outlined">
+            Cancel
+          </Button>
           <Button color="error" variant="contained" onClick={() => remove(confirmDelete)}>
             Delete
           </Button>
@@ -333,178 +326,124 @@ function InfoRow({ label, value }) {
   if (!value) return null;
   return (
     <Stack direction="row" spacing={1} sx={{ mb: 0.5 }}>
-      <Typography variant="body2" fontWeight={600} sx={{ minWidth: 120, color: "text.secondary" }}>
+      <Typography
+        variant="body2"
+        fontWeight={600}
+        sx={{ minWidth: 120, color: "text.secondary", fontSize: "0.8rem" }}
+      >
         {label}
       </Typography>
-      <Typography variant="body2">{value}</Typography>
+      <Typography variant="body2" sx={{ fontSize: "0.8rem" }}>{value}</Typography>
     </Stack>
   );
 }
 
-function AgentCardView({ agentId, notify, onTagsChanged }) {
+function AgentCardView({ agentId, notify, onChanged }) {
   const [card, setCard] = useState(null);
   const [detail, setDetail] = useState(null);
-  const [editTags, setEditTags] = useState(null);
-  const [tagInput, setTagInput] = useState("");
+  const [editingKey, setEditingKey] = useState(false);
+  const [newApiKey, setNewApiKey] = useState("");
 
   useEffect(() => {
-    api.getAgent(agentId).then((d) => {
-      setCard(d.agent_card);
-      setDetail(d);
-    }).catch(() => {});
+    api
+      .getAgent(agentId)
+      .then((d) => {
+        setCard(d.agent_info);
+        setDetail(d);
+      })
+      .catch(() => {});
   }, [agentId]);
 
-  const startEditTags = () => setEditTags(detail?.tags || []);
+  const startEditKey = () => {
+    setNewApiKey("");
+    setEditingKey(true);
+  };
 
-  const saveTags = async () => {
+  const saveKey = async () => {
+    if (!newApiKey.trim()) return;
     try {
-      await api.updateAgent(agentId, { tags: editTags });
-      setEditTags(null);
-      notify("Tags updated");
-      onTagsChanged();
-      api.getAgent(agentId).then((d) => { setCard(d.agent_card); setDetail(d); });
+      await api.updateAgent(agentId, { dify_api_key: newApiKey.trim() });
+      notify("API Key updated");
+      setEditingKey(false);
+      onChanged();
+      api.getAgent(agentId).then((d) => {
+        setCard(d.agent_info);
+        setDetail(d);
+      });
     } catch (e) {
       notify(e.message, "error");
     }
   };
 
-  const addEditTag = () => {
-    const t = tagInput.trim().toLowerCase();
-    if (t && !editTags.includes(t) && editTags.length < 10) {
-      setEditTags([...editTags, t]);
-    }
-    setTagInput("");
-  };
-
   if (!card) return null;
-
-  const skills = card.skills || [];
-  const caps = card.capabilities || {};
 
   return (
     <Box
       sx={{
         mt: 2,
         p: 2.5,
-        bgcolor: "rgba(255,255,255,0.02)",
-        borderRadius: 2,
+        bgcolor: "#F5F6F7",
+        borderRadius: 1,
         border: "1px solid",
         borderColor: "divider",
       }}
     >
       <InfoRow label="Name" value={card.name} />
       <InfoRow label="Description" value={card.description} />
-      <InfoRow label="URL" value={card.url} />
-      <InfoRow label="Version" value={card.version} />
-      <InfoRow label="Provider" value={card.provider?.organization} />
-      <InfoRow label="Documentation" value={card.documentationUrl} />
+      <InfoRow label="Mode" value={card.mode} />
+      <InfoRow label="Author" value={card.author_name} />
 
-      {/* Tags section */}
-      <Box sx={{ mt: 2, mb: 1 }}>
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-          <Typography variant="subtitle2">Tags</Typography>
-          {editTags === null ? (
-            <Button size="small" onClick={startEditTags} sx={{ minWidth: 0, fontSize: "0.75rem" }}>
-              Edit
-            </Button>
-          ) : (
-            <>
-              <Button size="small" onClick={saveTags} color="primary" sx={{ minWidth: 0, fontSize: "0.75rem" }}>Save</Button>
-              <Button size="small" onClick={() => setEditTags(null)} sx={{ minWidth: 0, fontSize: "0.75rem", color: "text.secondary" }}>Cancel</Button>
-            </>
-          )}
-        </Stack>
-        {editTags !== null ? (
-          <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap alignItems="center">
-            {editTags.map((t) => (
-              <Chip
-                key={t}
-                label={t}
-                size="small"
-                color="primary"
-                onDelete={() => setEditTags(editTags.filter((x) => x !== t))}
-              />
-            ))}
+      {detail?.last_seen && (
+        <InfoRow
+          label="Last Seen"
+          value={new Date(detail.last_seen).toLocaleString()}
+        />
+      )}
+
+      {/* API Key */}
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+        <Typography variant="body2" fontWeight={600} sx={{ minWidth: 120, color: "text.secondary" }}>
+          API Key
+        </Typography>
+        {editingKey ? (
+          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flex: 1 }}>
             <TextField
               size="small"
-              placeholder="Add tag..."
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
+              placeholder="app-xxxxxxxxxxxx"
+              value={newApiKey}
+              onChange={(e) => setNewApiKey(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") { e.preventDefault(); addEditTag(); }
+                if (e.key === "Enter") saveKey();
+                if (e.key === "Escape") setEditingKey(false);
               }}
-              sx={{ width: 130, "& .MuiOutlinedInput-root": { fontSize: "0.8rem" } }}
+              autoFocus
+              sx={{ flex: 1, "& .MuiOutlinedInput-root": { fontSize: "0.8rem" } }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <VpnKeyIcon sx={{ fontSize: 14, color: "text.secondary" }} />
+                  </InputAdornment>
+                ),
+              }}
             />
+            <IconButton size="small" onClick={saveKey} color="primary">
+              <Check sx={{ fontSize: 18 }} />
+            </IconButton>
+            <IconButton size="small" onClick={() => setEditingKey(false)}>
+              <Close sx={{ fontSize: 18 }} />
+            </IconButton>
           </Stack>
         ) : (
-          <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-            {(detail?.tags || []).length > 0
-              ? detail.tags.map((t) => (
-                  <Chip key={t} label={t} size="small" variant="outlined" color="primary"
-                    sx={{ height: 24, fontSize: "0.72rem" }}
-                  />
-                ))
-              : <Typography variant="caption" color="text.secondary">No tags</Typography>
-            }
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
+              ********
+            </Typography>
+            <IconButton size="small" onClick={startEditKey} sx={{ ml: 0.5 }}>
+              <Edit sx={{ fontSize: 14 }} />
+            </IconButton>
           </Stack>
         )}
-      </Box>
-
-      {Object.keys(caps).length > 0 && (
-        <Box sx={{ mt: 2 }}>
-          <Typography variant="subtitle2" sx={{ mb: 0.75 }}>Capabilities</Typography>
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            {caps.streaming && <Chip label="Streaming" size="small" sx={{ bgcolor: "rgba(59,130,246,0.15)", color: "#60a5fa", border: "none" }} />}
-            {caps.pushNotifications && <Chip label="Push Notifications" size="small" sx={{ bgcolor: "rgba(59,130,246,0.15)", color: "#60a5fa", border: "none" }} />}
-            {caps.stateTransitionHistory && <Chip label="State History" size="small" sx={{ bgcolor: "rgba(59,130,246,0.15)", color: "#60a5fa", border: "none" }} />}
-          </Stack>
-        </Box>
-      )}
-
-      {skills.length > 0 && (
-        <Box sx={{ mt: 2 }}>
-          <Typography variant="subtitle2" sx={{ mb: 0.75 }}>Skills ({skills.length})</Typography>
-          <Stack spacing={1}>
-            {skills.map((s, i) => (
-              <Box
-                key={i}
-                sx={{
-                  pl: 1.5,
-                  borderLeft: "2px solid",
-                  borderColor: "primary.dark",
-                }}
-              >
-                <Typography variant="body2" fontWeight={600}>
-                  {s.name || s.id}
-                </Typography>
-                {s.description && (
-                  <Typography variant="caption" color="text.secondary">
-                    {s.description}
-                  </Typography>
-                )}
-                {s.tags?.length > 0 && (
-                  <Stack direction="row" spacing={0.5} sx={{ mt: 0.5 }} flexWrap="wrap" useFlexGap>
-                    {s.tags.map((t) => (
-                      <Chip key={t} label={t} size="small" variant="outlined"
-                        sx={{ height: 22, fontSize: "0.68rem", borderColor: "rgba(255,255,255,0.1)" }}
-                      />
-                    ))}
-                  </Stack>
-                )}
-              </Box>
-            ))}
-          </Stack>
-        </Box>
-      )}
-
-      {card.defaultInputModes?.length > 0 && (
-        <Box sx={{ mt: 1.5 }}>
-          <InfoRow label="Input Modes" value={card.defaultInputModes.join(", ")} />
-        </Box>
-      )}
-      {card.defaultOutputModes?.length > 0 && (
-        <InfoRow label="Output Modes" value={card.defaultOutputModes.join(", ")} />
-      )}
+      </Stack>
     </Box>
   );
 }
