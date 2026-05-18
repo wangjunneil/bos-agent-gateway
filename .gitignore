@@ -24,6 +24,7 @@ env/
 # Node / Frontend
 node_modules/
 frontend/dist/
+frontend/package-lock.json
 
 # IDE
 .idea/
