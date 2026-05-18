@@ -117,6 +117,11 @@ export default function App() {
     setLoggedIn(false);
   }, []);
 
+  const goHome = useCallback(() => {
+    setTab(0);
+    setAgentDetail(null);
+  }, []);
+
   useEffect(() => {
     onAuthError(logout);
     const saved = localStorage.getItem("apiKey");
@@ -156,27 +161,30 @@ export default function App() {
       <AppBar position="sticky" elevation={0}>
         <Toolbar sx={{ minHeight: "52px !important", px: { xs: 2, md: 3 } }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexGrow: 1 }}>
-            <Box
-              sx={{
-                width: 30,
-                height: 30,
-                borderRadius: "6px",
-                background: "linear-gradient(135deg, #0070F2 0%, #0057B8 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Typography sx={{ fontSize: 14, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
-                B
+              <Box
+                sx={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: "6px",
+                  background: "linear-gradient(135deg, #0070F2 0%, #0057B8 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+                onClick={goHome}
+              >
+                <Typography sx={{ fontSize: 14, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
+                  B
+                </Typography>
+              </Box>
+              <Typography
+                variant="body1"
+                sx={{ fontWeight: 600, color: "#1D2D3E", letterSpacing: "-0.01em", cursor: "pointer" }}
+                onClick={goHome}
+              >
+                BOS Agent Gateway
               </Typography>
-            </Box>
-            <Typography
-              variant="body1"
-              sx={{ fontWeight: 600, color: "#1D2D3E", letterSpacing: "-0.01em" }}
-            >
-              BOS Agent Gateway
-            </Typography>
           </Box>
           {loggedIn && (
             <>
