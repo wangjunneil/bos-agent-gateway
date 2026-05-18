@@ -47,6 +47,7 @@ def _agent_to_response(agent: Agent) -> AgentResponse:
         name=agent.name,
         description=agent.description,
         status=agent.status,
+        command_enabled=agent.command_enabled,
         last_seen=agent.last_seen,
         is_public=agent.is_public,
         tags=_tags_list(agent),
@@ -63,6 +64,7 @@ def _agent_to_detail(agent: Agent) -> AgentDetailResponse:
         name=agent.name,
         description=agent.description,
         status=agent.status,
+        command_enabled=agent.command_enabled,
         last_seen=agent.last_seen,
         is_public=agent.is_public,
         tags=_tags_list(agent),
@@ -274,6 +276,9 @@ async def update_agent(
 
     if payload.dify_api_key is not None:
         agent.dify_api_key = payload.dify_api_key
+
+    if payload.command_enabled is not None:
+        agent.command_enabled = payload.command_enabled
 
     agent.updated_at = datetime.now(UTC)
     await db.commit()

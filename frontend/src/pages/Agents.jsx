@@ -88,6 +88,7 @@ export default function AgentsPage({ notify }) {
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [commandModeEnabled, setCommandModeEnabled] = useState(false);
 
   const load = () => {
     api.listAgents().then(setAgents).catch((e) => notify(e.message, "error"));
@@ -95,6 +96,12 @@ export default function AgentsPage({ notify }) {
 
   useEffect(() => {
     load();
+    api
+      .getPublicSettings()
+      .then((data) => {
+        setCommandModeEnabled(!!data?.command_mode_enabled);
+      })
+      .catch(() => {});
   }, []);
 
   const register = async () => {
@@ -131,6 +138,15 @@ export default function AgentsPage({ notify }) {
   const togglePublic = async (agent) => {
     try {
       await api.updateAgent(agent.id, { is_public: !agent.is_public });
+      load();
+    } catch (e) {
+      notify(e.message, "error");
+    }
+  };
+
+  const toggleCommand = async (agent) => {
+    try {
+      await api.updateAgent(agent.id, { command_enabled: !agent.command_enabled });
       load();
     } catch (e) {
       notify(e.message, "error");
@@ -252,6 +268,21 @@ export default function AgentsPage({ notify }) {
 
                 <StatusBadge status={a.status} />
 
+                <Tooltip title="命令模式：开启后 /chat-messages 请求先经命令服务审批，返回 PASS 才放行" arrow>
+                <FormControlLabel
+                  control={
+                    <Switch checked={a.command_enabled} onChange={() => toggleCommand(a)} size="small" disabled={!commandModeEnabled} />
+                  }
+                  label={
+                    <Typography variant="caption" color={commandModeEnabled ? "text.secondary" : "#D5DADD"}>
+                      CMD
+                    </Typography>
+                  }
+                  sx={{ ml: 0 }}
+                />
+                </Tooltip>
+
+                <Tooltip title="公开访问：开启后所有认证用户可用；关闭后仅 admin 和已分配用户可用" arrow>
                 <FormControlLabel
                   control={
                     <Switch checked={a.is_public} onChange={() => togglePublic(a)} size="small" />
@@ -263,6 +294,7 @@ export default function AgentsPage({ notify }) {
                   }
                   sx={{ ml: 0 }}
                 />
+                </Tooltip>
                 <IconButton
                   size="small"
                   onClick={() => setExpanded(expanded === a.id ? null : a.id)}

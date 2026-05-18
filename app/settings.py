@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     REDIS_USERNAME: str = ""
     REDIS_PASSWORD: str = ""
     REDIS_ENABLED: bool = True
+    AUTO_REFRESH_INTERVAL_SECONDS: int = 30
+    DIFY_COMMAND_URL: str = ""
+    DIFY_COMMAND_KEY: str = ""
     ADMIN_API_KEY: str
     ADMIN_USERNAME: str = "admin"
 

@@ -59,6 +59,15 @@ app.include_router(stats.router)
 app.include_router(sessions.router)
 app.include_router(proxy.router)
 
+
+@app.get("/v1/settings/public")
+async def get_public_settings() -> dict:
+    return {
+        "auto_refresh_interval_seconds": settings.AUTO_REFRESH_INTERVAL_SECONDS,
+        "command_mode_enabled": bool(settings.DIFY_COMMAND_URL and settings.DIFY_COMMAND_KEY),
+    }
+
+
 _frontend_dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 if _frontend_dist.is_dir():
     app.mount("/", StaticFiles(directory=str(_frontend_dist), html=True), name="frontend")

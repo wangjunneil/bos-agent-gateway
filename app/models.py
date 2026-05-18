@@ -38,6 +38,7 @@ class AgentUpdate(BaseModel):
     is_public: bool | None = None
     base_url: str | None = None
     dify_api_key: str | None = None
+    command_enabled: bool | None = None
     tags: list[str] | None = None
 
     @field_validator("tags")
@@ -54,6 +55,7 @@ class AgentResponse(BaseModel):
     name: str | None = None
     description: str | None = None
     status: str
+    command_enabled: bool = False
     last_seen: datetime | None = None
     is_public: bool
     tags: list[str] = []

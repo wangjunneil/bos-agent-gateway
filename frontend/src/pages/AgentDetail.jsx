@@ -16,8 +16,10 @@ import {
   MenuItem,
   Select,
   FormControl,
+  FormControlLabel,
   Paper,
   Stack,
+  Switch,
   TextField,
   Typography,
 } from "@mui/material";
@@ -239,14 +241,27 @@ function ConversationList({ agentId, difyUser, onSelect, selectedId }) {
             >
               <ListItemText
                 primary={c.name || "New chat"}
-                secondary={new Date(c.created_at * 1000).toLocaleString()}
+                secondary={
+                  <Stack component="span" spacing={0}>
+                    <Typography component="span" variant="caption" sx={{ fontSize: "0.6rem", color: "#a1a1aa" }}>
+                      {new Date(c.created_at * 1000).toLocaleString()}
+                    </Typography>
+                    <Typography
+                      component="span"
+                      variant="caption"
+                      sx={{ fontSize: "0.6rem", color: "#a1a1aa", fontFamily: "monospace" }}
+                    >
+                      {c.id}
+                    </Typography>
+                  </Stack>
+                }
                 primaryTypographyProps={{
                   variant: "body2",
                   fontWeight: selectedId === c.id ? 600 : 400,
                   noWrap: true,
                   fontSize: "0.8rem",
                 }}
-                secondaryTypographyProps={{ variant: "caption", fontSize: "0.7rem" }}
+                secondaryTypographyProps={{ component: "div" }}
               />
             </ListItem>
           ))}
@@ -314,24 +329,32 @@ function ConversationList({ agentId, difyUser, onSelect, selectedId }) {
   );
 }
 
-function MessageList({ agentId, difyUser, conversationId }) {
+function MessageList({ agentId, difyUser, conversationId, autoRefreshInterval }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
-  const observerRef = useRef(null);
+  const loadingRef = useRef(false);
   const scrollRef = useRef(null);
+  const timerRef = useRef(null);
 
   const load = useCallback(async () => {
-    if (!difyUser || !conversationId || loading) return;
+    if (!difyUser || !conversationId || loadingRef.current) return;
+    loadingRef.current = true;
     setLoading(true);
     try {
       const data = await api.getMessages(agentId, difyUser, conversationId);
       setItems(data.data);
+      setTimeout(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      }, 100);
     } catch {
       // silently fail
     } finally {
       setLoading(false);
+      loadingRef.current = false;
     }
-  }, [agentId, difyUser, conversationId, loading]);
+  }, [agentId, difyUser, conversationId]);
 
   useEffect(() => {
     setItems([]);
@@ -341,70 +364,81 @@ function MessageList({ agentId, difyUser, conversationId }) {
     if (difyUser && conversationId) {
       load();
     }
-  }, [difyUser, conversationId]);
+  }, [difyUser, conversationId, load]);
+
+  useEffect(() => {
+    if (autoRefreshInterval > 0 && conversationId) {
+      timerRef.current = setInterval(load, autoRefreshInterval * 1000);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [autoRefreshInterval, load, conversationId]);
 
   return (
-    <Box ref={scrollRef} sx={{ maxHeight: "calc(100vh - 180px)", overflow: "auto", px: 1 }}>
-      <Stack spacing={2}>
-        {items.map((m) => (
-          <Box key={m.id}>
-            {m.query && (
-              <Box sx={{ mb: 1.5 }}>
-                <Typography
-                  variant="caption"
-                  sx={{ fontWeight: 600, color: "#5B738B", mb: 0.5, display: "block" }}
-                >
-                  User
-                </Typography>
-                <Paper
-                  variant="outlined"
-                  sx={{
-                    p: 1.5,
-                    bgcolor: "#F0F4FF",
-                    borderColor: "rgba(0,112,242,0.15)",
-                    borderRadius: 2,
-                  }}
-                >
-                  <MarkdownContent text={m.query} />
-                </Paper>
-              </Box>
-            )}
-            {m.answer && (
-              <Box>
-                <Typography
-                  variant="caption"
-                  sx={{ fontWeight: 600, color: "#5B738B", mb: 0.5, display: "block" }}
-                >
-                  Agent
-                </Typography>
-                <Paper
-                  variant="outlined"
-                  sx={{
-                    p: 1.5,
-                    bgcolor: "#F5F6F7",
-                    borderColor: "#D5DADD",
-                    borderRadius: 2,
-                  }}
-                >
-                  <MarkdownContent text={m.answer} />
-                </Paper>
-              </Box>
-            )}
-            <Typography
-              variant="caption"
-              sx={{ color: "#a1a1aa", mt: 0.5, display: "block" }}
-            >
-              {new Date(m.created_at * 1000).toLocaleString()}
-            </Typography>
-          </Box>
-        ))}
-        {loading && (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-            <CircularProgress size={20} />
-          </Box>
-        )}
-      </Stack>
-    </Box>
+    <>
+      <Box ref={scrollRef} sx={{ maxHeight: "calc(100vh - 210px)", overflow: "auto", px: 1 }}>
+        <Stack spacing={2}>
+          {items.map((m) => (
+            <Box key={m.id}>
+              {m.query && (
+                <Box sx={{ mb: 1.5 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{ fontWeight: 600, color: "#5B738B", mb: 0.5, display: "block" }}
+                  >
+                    User
+                  </Typography>
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 1.5,
+                      bgcolor: "#F0F4FF",
+                      borderColor: "rgba(0,112,242,0.15)",
+                      borderRadius: 2,
+                    }}
+                  >
+                    <MarkdownContent text={m.query} />
+                  </Paper>
+                </Box>
+              )}
+              {m.answer && (
+                <Box>
+                  <Typography
+                    variant="caption"
+                    sx={{ fontWeight: 600, color: "#5B738B", mb: 0.5, display: "block" }}
+                  >
+                    Agent
+                  </Typography>
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 1.5,
+                      bgcolor: "#F5F6F7",
+                      borderColor: "#D5DADD",
+                      borderRadius: 2,
+                    }}
+                  >
+                    <MarkdownContent text={m.answer} />
+                  </Paper>
+                </Box>
+              )}
+              <Typography
+                variant="caption"
+                sx={{ color: "#a1a1aa", mt: 0.5, display: "block" }}
+              >
+                {new Date(m.created_at * 1000).toLocaleString()}
+              </Typography>
+            </Box>
+          ))}
+          {loading && (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+              <CircularProgress size={20} />
+            </Box>
+          )}
+        </Stack>
+      </Box>
+    </>
   );
 }
 
@@ -413,6 +447,8 @@ export default function AgentDetail({ agentId, agentName, onBack }) {
   const [difyUser, setDifyUser] = useState("");
   const [selectedConv, setSelectedConv] = useState(null);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [refreshInterval, setRefreshInterval] = useState(30);
 
   useEffect(() => {
     setLoadingUsers(true);
@@ -424,6 +460,15 @@ export default function AgentDetail({ agentId, agentName, onBack }) {
       })
       .catch(() => {})
       .finally(() => setLoadingUsers(false));
+
+    api
+      .getPublicSettings()
+      .then((data) => {
+        if (data?.auto_refresh_interval_seconds) {
+          setRefreshInterval(data.auto_refresh_interval_seconds);
+        }
+      })
+      .catch(() => {});
   }, [agentId]);
 
   return (
@@ -508,14 +553,33 @@ export default function AgentDetail({ agentId, agentName, onBack }) {
             flexDirection: "column",
           }}
         >
-          <Typography variant="subtitle2" sx={{ mb: 1.5 }}>
-            Messages
-          </Typography>
+          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 1.5 }}>
+            <Typography variant="subtitle2" sx={{ flexGrow: 1 }}>
+              Messages
+            </Typography>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={autoRefresh}
+                  onChange={(e) => setAutoRefresh(e.target.checked)}
+                  size="small"
+                  disabled={!selectedConv}
+                />
+              }
+              label={
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>
+                  Auto {refreshInterval}s
+                </Typography>
+              }
+              sx={{ m: 0 }}
+            />
+          </Stack>
           {selectedConv && difyUser ? (
             <MessageList
               agentId={agentId}
               difyUser={difyUser}
               conversationId={selectedConv}
+              autoRefreshInterval={autoRefresh ? refreshInterval : 0}
             />
           ) : (
             <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>

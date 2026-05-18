@@ -84,6 +84,7 @@ export const api = {
 
   getStats: () => request("/v1/stats/"),
   getAgentStats: (id) => request(`/v1/stats/agents/${id}`),
+  getPublicSettings: () => request("/v1/settings/public"),
 
   getAgentUsers: (agentId) => request(`/v1/agents/${agentId}/users`),
   getConversations: (agentId, user, lastId, limit = 20) => {

@@ -55,6 +55,7 @@ class Agent(Base):
     description: Mapped[str | None] = mapped_column(String, nullable=True)
     agent_info: Mapped[str | None] = mapped_column(Text, nullable=True)
     dify_api_key: Mapped[str | None] = mapped_column(String, nullable=True)
+    command_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     status: Mapped[str] = mapped_column(String, nullable=False, default="unknown")
     status_message: Mapped[str | None] = mapped_column(String, nullable=True)
     last_seen: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

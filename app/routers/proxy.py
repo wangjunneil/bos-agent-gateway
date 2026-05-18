@@ -257,12 +257,88 @@ async def _handle_proxy(
         forward_headers["Authorization"] = f"Bearer {agent.dify_api_key}"
         forward_headers.pop("authorization", None)
 
-    # Determine if streaming: check Accept header OR request body response_mode
+    start = time.monotonic()
+
+    # Command mode: if enabled and this is a chat-messages request, check command service first
+    if (
+        agent.command_enabled
+        and settings.DIFY_COMMAND_URL
+        and settings.DIFY_COMMAND_KEY
+        and proxy_path.endswith("chat-messages")
+    ):
+        try:
+            orig_body = json.loads(body)
+            orig_query = orig_body.get("query", "")
+            orig_user = orig_body.get("user", "")
+            orig_conv_id = orig_body.get("conversation_id", "")
+
+            # Try to get cached task_id from Redis
+            cached_task_id = ""
+            if orig_user and orig_conv_id:
+                try:
+                    tid = await redis_client.get_task(orig_user, orig_conv_id)
+                    if tid:
+                        cached_task_id = tid
+                except Exception:
+                    pass
+
+            cmd_body = {
+                "inputs": {
+                    "conversation_id": orig_conv_id,
+                    "user_id": orig_user,
+                    "task_id": cached_task_id,
+                    "api_key": agent.dify_api_key or "",
+                },
+                "query": orig_query,
+                "response_mode": "blocking",
+                "conversation_id": "",
+                "user": orig_user,
+            }
+            async with httpx.AsyncClient(timeout=httpx.Timeout(30)) as cmd_client:
+                cmd_resp = await cmd_client.post(
+                    f"{settings.DIFY_COMMAND_URL.rstrip('/')}/chat-messages",
+                    json=cmd_body,
+                    headers={"Authorization": f"Bearer {settings.DIFY_COMMAND_KEY}"},
+                )
+                try:
+                    cmd_data = cmd_resp.json()
+                    cmd_answer = cmd_data.get("answer", "")
+                except Exception:
+                    cmd_answer = cmd_resp.text.strip()
+                if cmd_answer != "PASS":
+                    duration_ms = int((time.monotonic() - start) * 1000)
+                    await _log_invocation(
+                        db, user.id, agent_id, "POST", proxy_path, None,
+                        cmd_resp.status_code, duration_ms, "blocked by command",
+                    )
+                    # Replace command service's temporary conversation_id with the original one
+                    cmd_content = cmd_resp.content
+                    try:
+                        cmd_data = json.loads(cmd_resp.content)
+                        if "conversation_id" in cmd_data:
+                            cmd_data["conversation_id"] = orig_conv_id
+                        if "metadata" in cmd_data and isinstance(cmd_data["metadata"], dict):
+                            cmd_data["metadata"]["conversation_id"] = orig_conv_id
+                        cmd_content = json.dumps(cmd_data, ensure_ascii=False).encode()
+                    except Exception:
+                        pass
+                    resp = Response(
+                        content=cmd_content,
+                        status_code=cmd_resp.status_code,
+                        media_type=cmd_resp.headers.get("content-type", "text/plain"),
+                    )
+                    for k, v in _rate_limit_headers(user).items():
+                        resp.headers[k] = v
+                    return resp
+                # Command returned PASS — continue with normal proxy
+        except (httpx.ConnectError, httpx.TimeoutException, json.JSONDecodeError):
+            # Command service unreachable or body parse error — fall through to normal proxy
+            pass
+
     is_sse = "text/event-stream" in (request.headers.get("accept", "") or "")
     if not is_sse and dify_user:
         is_sse = req_data.get("response_mode") == "streaming"
 
-    start = time.monotonic()
     task_id: str | None = None
     error_detail: str | None = None
     resp_status: int | None = None
