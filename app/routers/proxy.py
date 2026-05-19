@@ -236,6 +236,10 @@ async def _handle_proxy(
     method = request.method
     target_url = f"{agent.base_url.rstrip('/')}/{proxy_path}"
 
+    # Forward query params
+    if request.url.query:
+        target_url = f"{target_url}?{request.url.query.decode()}"
+
     # Extract dify_user from request body
     dify_user: str | None = None
     req_data: dict = {}
