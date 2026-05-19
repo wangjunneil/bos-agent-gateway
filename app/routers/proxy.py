@@ -238,7 +238,7 @@ async def _handle_proxy(
 
     # Forward query params
     if request.url.query:
-        target_url = f"{target_url}?{request.url.query.decode()}"
+        target_url = f"{target_url}?{request.url.query}"
 
     # Extract dify_user from request body
     dify_user: str | None = None
