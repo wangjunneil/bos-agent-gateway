@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -142,9 +143,14 @@ async def get_stats(
         .group_by(func.strftime("%Y-%m-%dT%H:00", Invocation.created_at))
         .order_by("hour")
     )
-    invocations_per_hour = [
-        {"hour": row.hour, "count": row.count} for row in hourly_result.all()
-    ]
+    offset = timedelta(seconds=-time.timezone)
+    invocations_per_hour = []
+    for row in hourly_result.all():
+        utc_dt = datetime.strptime(row.hour, "%Y-%m-%dT%H:00").replace(tzinfo=UTC)
+        local_dt = utc_dt + offset
+        invocations_per_hour.append(
+            {"hour": local_dt.strftime("%Y-%m-%dT%H:00"), "count": row.count}
+        )
 
     # Top agents
     top_agents = await _build_agent_stats(db)

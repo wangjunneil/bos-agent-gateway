@@ -98,17 +98,27 @@ export default function UsersPage({ notify }) {
       {/* Create User */}
       <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
         <TextField
-          fullWidth
+          size="small"
+          sx={{ flex: 4 }}
+          placeholder="输入用户名"
           label="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && create()}
+          InputProps={{
+            sx: { fontSize: "0.8rem" },
+            startAdornment: (
+              <InputAdornment position="start">
+                <PersonAdd sx={{ fontSize: 16, color: "text.secondary" }} />
+              </InputAdornment>
+            ),
+          }}
         />
         <Button
           variant="contained"
           startIcon={<PersonAdd />}
           onClick={create}
-          sx={{ whiteSpace: "nowrap", px: 3 }}
+          sx={{ whiteSpace: "nowrap", px: 3, display: "flex", alignItems: "center", gap: 0.5 }}
         >
           Create User
         </Button>
