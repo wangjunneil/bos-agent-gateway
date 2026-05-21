@@ -1,15 +1,26 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
+  Autocomplete,
   Box,
   Button,
   Card,
   CardContent,
+  CircularProgress,
   Collapse,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   IconButton,
+  List,
+  ListItem,
+  ListItemText,
+  MenuItem,
+  Paper,
+  Popover,
+  Select,
   Stack,
   Switch,
   TextField,
@@ -20,15 +31,81 @@ import {
 } from "@mui/material";
 import {
   Add,
-  Delete,
-  ExpandMore,
-  ContentCopy,
-  Edit,
-  Check,
+  Chat,
   Close,
+  ContentCopy,
+  Delete,
+  Edit,
+  ExpandMore,
+  Send,
+  Terminal,
   VpnKey as VpnKeyIcon,
 } from "@mui/icons-material";
-import { api } from "../api";
+import { api, streamChat } from "../api";
+
+function MarkdownContent({ text }) {
+  const parts = useMemo(() => {
+    const result = [];
+    const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
+    let lastIndex = 0;
+    let match;
+
+    while ((match = thinkRegex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        result.push({ type: "text", content: text.slice(lastIndex, match.index) });
+      }
+      result.push({ type: "think", content: match[1].trim() });
+      lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < text.length) {
+      result.push({ type: "text", content: text.slice(lastIndex) });
+    }
+    return result;
+  }, [text]);
+
+  return (
+    <Box>
+      {parts.map((part, i) =>
+        part.type === "think" ? (
+          <Box
+            key={i}
+            sx={{
+              bgcolor: "#EDEFF2",
+              color: "#7D8D9E",
+              p: 1.5,
+              borderRadius: 1,
+              mb: 1,
+              fontSize: "0.8rem",
+              whiteSpace: "pre-wrap",
+              lineHeight: 1.6,
+            }}
+          >
+            {part.content}
+          </Box>
+        ) : (
+          <Box
+            key={i}
+            sx={{
+              fontSize: "0.8rem",
+              lineHeight: 1.6,
+              "& p": { m: 0, mb: 0.5 },
+              "& code": { bgcolor: "#EDEFF2", px: 0.5, borderRadius: 0.5 },
+              "& pre": { bgcolor: "#EDEFF2", p: 1.5, borderRadius: 1, overflow: "auto" },
+              "& ul, & ol": { pl: 2.5, mb: 1 },
+              "& li": { mb: 0.25 },
+              "& strong": { fontWeight: 600 },
+            }}
+          >
+            <ReactMarkdown remarkPlugins={[remarkGfm]}
+            >
+              {part.content}
+            </ReactMarkdown>
+          </Box>
+        )
+      )}
+    </Box>
+  );
+}
 
 const STATUS_COLORS = {
   online: "#188918",
@@ -81,6 +158,287 @@ function StatusBadge({ status }) {
   );
 }
 
+function ChatDialog({ agentId, agentName, commandEnabled, open, onClose }) {
+  const USER_HISTORY_KEY = "chatUserHistory";
+  const [userHistory, setUserHistory] = useState([]);
+  const [user, setUser] = useState("");
+  const [conversationId, setConversationId] = useState("等待生成");
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [streamingContent, setStreamingContent] = useState("");
+  const [commands, setCommands] = useState([]);
+  const [commandMenuOpen, setCommandMenuOpen] = useState(false);
+  const [filteredCommands, setFilteredCommands] = useState([]);
+  const [menuIndex, setMenuIndex] = useState(0);
+  const [commandFetchUrl, setCommandFetchUrl] = useState("");
+  const abortRef = useRef(null);
+  const scrollRef = useRef(null);
+  const cmdAnchorRef = useRef(null);
+
+  // Load user history and command URL on open
+  useEffect(() => {
+    if (open) {
+      try {
+        const hist = JSON.parse(localStorage.getItem(USER_HISTORY_KEY) || "[]");
+        setUserHistory(hist);
+        if (hist.length > 0) setUser(hist[0]);
+      } catch {
+        setUserHistory([]);
+      }
+      setConversationId("等待生成");
+      api.getPublicSettings().then((d) => {
+        if (d?.command_fetch_url) setCommandFetchUrl(d.command_fetch_url);
+      }).catch(() => {});
+    }
+  }, [open]);
+
+  // Fetch commands
+  useEffect(() => {
+    if (open && commandFetchUrl) {
+      fetch(commandFetchUrl)
+        .then((res) => res.json())
+        .then((data) => setCommands(data?.value || []))
+        .catch(() => {});
+    }
+  }, [open, commandFetchUrl]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, streamingContent]);
+
+  const saveUser = (u) => {
+    if (!u) return;
+    const updated = [u, ...userHistory.filter((x) => x !== u)].slice(0, 10);
+    setUserHistory(updated);
+    localStorage.setItem(USER_HISTORY_KEY, JSON.stringify(updated));
+  };
+
+  const handleSend = () => {
+    if (!input.trim() || !user.trim() || loading) return;
+    saveUser(user.trim());
+    const q = input.trim();
+    setInput("");
+    setMessages((prev) => [...prev, { role: "user", content: q }]);
+    setLoading(true);
+    setStreamingContent("");
+    setCommandMenuOpen(false);
+
+    if (abortRef.current) abortRef.current.abort();
+    abortRef.current = streamChat(
+        agentId, q, user.trim(),
+        (chunk) => { setStreamingContent((prev) => prev + chunk); },
+        () => {
+            setStreamingContent((prev) => {
+                if (prev) setMessages((msgs) => [...msgs, { role: "agent", content: prev }]);
+                return "";
+            });
+            setLoading(false);
+            abortRef.current = null;
+        },
+        (e) => {
+            setMessages((prev) => [...prev, { role: "agent", content: `Error: ${e.message}` }]);
+            setLoading(false);
+            abortRef.current = null;
+        },
+        (cid) => { if (cid && cid !== conversationId) setConversationId(cid); }
+    );
+  };
+
+  const handleClose = () => {
+    if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
+    onClose();
+  };
+
+  const handleInputChange = (e) => {
+    setInput(e.target.value);
+  };
+
+  const handleInputKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (commandMenuOpen) return;
+    handleInputKeyDown(e);
+  };
+
+  const handleCommandSelect = (cmd) => {
+    setInput(cmd.command_name + " ");
+    setCommandMenuOpen(false);
+  };
+
+  const handleCommandKeyDown = (e) => {
+    if (!commandMenuOpen) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setMenuIndex((i) => Math.min(i + 1, filteredCommands.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setMenuIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (filteredCommands[menuIndex]) handleCommandSelect(filteredCommands[menuIndex]);
+    } else if (e.key === "Escape") {
+      setCommandMenuOpen(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+      <DialogTitle sx={{ pb: 1 }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+            Chat: {agentName || "Agent"}
+          </Typography>
+          <IconButton size="small" onClick={handleClose}>
+            <Close sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Stack>
+      </DialogTitle>
+      <DialogContent dividers sx={{ display: "flex", flexDirection: "column", p: 2, gap: 1.5 }}>
+        {/* User & Conversation ID */}
+        <Stack direction="row" spacing={2} sx={{ flexShrink: 0 }}>
+          <Autocomplete
+            size="small"
+            freeSolo
+            fullWidth
+            options={userHistory}
+            value={user || ""}
+            onChange={(_, v) => setUser(v || "")}
+            onInputChange={(_, v) => setUser(v)}
+            renderInput={(params) => (
+              <TextField {...params} label="会话标识" />
+            )}
+          />
+          <TextField
+            size="small"
+            fullWidth
+            label="Conversation ID"
+            value={conversationId}
+            disabled
+          />
+        </Stack>
+
+        {/* Messages */}
+        <Box ref={scrollRef} sx={{ flex: 1, minHeight: 300, maxHeight: 400, overflow: "auto", bgcolor: "#FAFAFB", borderRadius: 1, p: 2, border: "1px solid", borderColor: "divider" }}>
+          {messages.length === 0 && !streamingContent && (
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", mt: 4 }}>输入消息开始对话</Typography>
+          )}
+          <Stack spacing={2}>
+            {messages.map((m, i) => (
+              <Box key={i}>
+                <Typography variant="caption" sx={{ fontWeight: 600, color: m.role === "user" ? "#0070F2" : "#188918", display: "block", mb: 0.5 }}>
+                  {m.role === "user" ? `👤 ${user}` : "🤖 Agent"}
+                </Typography>
+                <Paper variant="outlined" sx={{ p: 1.5, bgcolor: m.role === "user" ? "#F0F4FF" : "#F5F6F7", borderColor: m.role === "user" ? "rgba(0,112,242,0.15)" : "#D5DADD", borderRadius: 2 }}>
+                  <MarkdownContent text={m.content} />
+                </Paper>
+                {conversationId && conversationId !== "等待生成" && (
+                  <Typography variant="caption" sx={{ color: "#a1a1aa", fontSize: "0.6rem", fontFamily: "monospace", textAlign: "right", display: "block", mt: 0.25 }}>
+                    {conversationId}
+                  </Typography>
+                )}
+              </Box>
+            ))}
+            {streamingContent && (
+              <Box>
+                <Typography variant="caption" sx={{ fontWeight: 600, color: "#188918", display: "block", mb: 0.5 }}>🤖 Agent</Typography>
+                <Paper variant="outlined" sx={{ p: 1.5, bgcolor: "#F5F6F7", borderColor: "#D5DADD", borderRadius: 2 }}>
+                  <MarkdownContent text={streamingContent} />
+                </Paper>
+                {conversationId && conversationId !== "等待生成" && (
+                  <Typography variant="caption" sx={{ color: "#a1a1aa", fontSize: "0.6rem", fontFamily: "monospace", textAlign: "right", display: "block", mt: 0.25 }}>
+                    {conversationId}
+                  </Typography>
+                )}
+              </Box>
+            )}
+            {loading && !streamingContent && (
+              <Box sx={{ display: "flex", justifyContent: "center", py: 1 }}><CircularProgress size={18} /></Box>
+            )}
+          </Stack>
+        </Box>
+      </DialogContent>
+
+      {/* Input bar */}
+      <DialogActions sx={{ px: 2, pb: 2, position: "relative" }}>
+        {commandEnabled && (
+        <IconButton
+          ref={cmdAnchorRef}
+          size="small"
+          onClick={() => {
+            setFilteredCommands(commands);
+            setCommandMenuOpen(true);
+            setMenuIndex(0);
+          }}
+          sx={{ color: "#5B738B" }}
+        >
+          <Terminal sx={{ fontSize: 20 }} />
+        </IconButton>
+        )}
+        <TextField
+          fullWidth
+          size="small"
+          placeholder="输入消息... (Enter 发送, / 命令)"
+          value={input}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          disabled={loading}
+        />
+        <Popover
+          open={commandMenuOpen}
+          anchorEl={cmdAnchorRef.current}
+          onClose={() => setCommandMenuOpen(false)}
+          anchorOrigin={{ vertical: "top", horizontal: "left" }}
+          transformOrigin={{ vertical: "bottom", horizontal: "left" }}
+          slotProps={{ paper: { sx: { maxHeight: 300, minWidth: 360 } } }}
+        >
+          <List dense disablePadding>
+            {filteredCommands.map((c, i) => (
+              <ListItem
+                key={c.command_name}
+                onClick={() => handleCommandSelect(c)}
+                sx={{
+                  cursor: "pointer",
+                  bgcolor: i === menuIndex ? "#F0F4FF" : "transparent",
+                  "&:hover": { bgcolor: i === menuIndex ? "#E0E8FF" : "#F5F6F7" },
+                }}
+              >
+                <ListItemText
+                  primary={c.command_name}
+                  secondary={c.command_desc}
+                  primaryTypographyProps={{ variant: "body2", fontFamily: "monospace", fontSize: "0.8rem", fontWeight: 600 }}
+                  secondaryTypographyProps={{ variant: "caption", fontSize: "0.65rem" }}
+                />
+              </ListItem>
+            ))}
+            {filteredCommands.length === 0 && (
+              <ListItem>
+                <ListItemText primary="No matching commands" primaryTypographyProps={{ variant: "body2", color: "text.secondary" }} />
+              </ListItem>
+            )}
+          </List>
+        </Popover>
+        <Button
+          variant="contained"
+          onClick={handleSend}
+          disabled={!input.trim() || !user.trim() || loading}
+          sx={{ minWidth: 80, ml: 1 }}
+          endIcon={<Send sx={{ fontSize: 16 }} />}
+        >
+          发送
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 export default function AgentsPage({ notify }) {
   const [agents, setAgents] = useState([]);
   const [difyUrl, setDifyUrl] = useState("");
@@ -89,6 +447,7 @@ export default function AgentsPage({ notify }) {
   const [expanded, setExpanded] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [commandModeEnabled, setCommandModeEnabled] = useState(false);
+  const [chatAgent, setChatAgent] = useState(null);
 
   const load = () => {
     api.listAgents().then(setAgents).catch((e) => notify(e.message, "error"));
@@ -219,6 +578,16 @@ export default function AgentsPage({ notify }) {
           >
             <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
               <Stack direction="row" alignItems="center" spacing={2}>
+                <IconButton
+                  size="small"
+                  onClick={() => setExpanded(expanded === a.id ? null : a.id)}
+                  sx={{
+                    transition: "transform 0.2s ease",
+                    transform: expanded === a.id ? "rotate(180deg)" : "rotate(0deg)",
+                  }}
+                >
+                  <ExpandMore sx={{ fontSize: 20 }} />
+                </IconButton>
                 <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5, fontSize: "0.8rem" }}>
                     {a.name || a.base_url}
@@ -268,20 +637,7 @@ export default function AgentsPage({ notify }) {
 
                 <StatusBadge status={a.status} />
 
-                <Tooltip title="命令模式：开启后 /chat-messages 请求先经命令服务审批，返回 PASS 才放行" arrow>
-                <FormControlLabel
-                  control={
-                    <Switch checked={a.command_enabled} onChange={() => toggleCommand(a)} size="small" disabled={!commandModeEnabled} />
-                  }
-                  label={
-                    <Typography variant="caption" color={commandModeEnabled ? "text.secondary" : "#D5DADD"}>
-                      CMD
-                    </Typography>
-                  }
-                  sx={{ ml: 0 }}
-                />
-                </Tooltip>
-
+                <Stack direction="column" alignItems="center" spacing={0}>
                 <Tooltip title="公开访问：开启后所有认证用户可用；关闭后仅 admin 和已分配用户可用" arrow>
                 <FormControlLabel
                   control={
@@ -295,16 +651,30 @@ export default function AgentsPage({ notify }) {
                   sx={{ ml: 0 }}
                 />
                 </Tooltip>
-                <IconButton
-                  size="small"
-                  onClick={() => setExpanded(expanded === a.id ? null : a.id)}
-                  sx={{
-                    transition: "transform 0.2s ease",
-                    transform: expanded === a.id ? "rotate(180deg)" : "rotate(0deg)",
-                  }}
-                >
-                  <ExpandMore sx={{ fontSize: 20 }} />
-                </IconButton>
+
+                <Tooltip title="命令模式：开启后 /chat-messages 请求先经命令服务审批，返回 PASS 才放行" arrow>
+                <FormControlLabel
+                  control={
+                    <Switch checked={a.command_enabled} onChange={() => toggleCommand(a)} size="small" disabled={!commandModeEnabled} />
+                  }
+                  label={
+                    <Typography variant="caption" color={commandModeEnabled ? "text.secondary" : "#D5DADD"}>
+                      CMD
+                    </Typography>
+                  }
+                  sx={{ ml: 0 }}
+                />
+                </Tooltip>
+                </Stack>
+                <Tooltip title="开始临时对话" arrow>
+                  <IconButton
+                    size="small"
+                    onClick={() => setChatAgent({ id: a.id, name: a.name || a.base_url, commandEnabled: a.command_enabled })}
+                    sx={{ color: "#5B738B", "&:hover": { color: "#0070F2" } }}
+                  >
+                    <Chat sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </Tooltip>
                 <IconButton
                   size="small"
                   onClick={() => setConfirmDelete(a)}
@@ -350,6 +720,17 @@ export default function AgentsPage({ notify }) {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Chat Dialog */}
+      {chatAgent && (
+        <ChatDialog
+          agentId={chatAgent.id}
+          agentName={chatAgent.name}
+          commandEnabled={chatAgent.commandEnabled}
+          open={!!chatAgent}
+          onClose={() => setChatAgent(null)}
+        />
+      )}
     </Box>
   );
 }

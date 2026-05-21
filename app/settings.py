@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     AUTO_REFRESH_INTERVAL_SECONDS: int = 30
     DIFY_COMMAND_URL: str = ""
     DIFY_COMMAND_KEY: str = ""
+    COMMAND_FETCH_URL: str = "https://config.boscloud.cn/config/ef2w31dmuar/api/v1/kv/commands"
     ADMIN_API_KEY: str
     ADMIN_USERNAME: str = "admin"
 

@@ -106,3 +106,84 @@ export const api = {
       body: JSON.stringify({ name }),
     }),
 };
+
+export function streamChat(agentId, query, user, onChunk, onDone, onError, onConversation) {
+  const controller = new AbortController();
+
+  fetch(`${BASE}/agent/${agentId}/v1/chat-messages`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-API-Key": getApiKey(),
+      Accept: "text/event-stream",
+    },
+    body: JSON.stringify({ inputs: {}, query, response_mode: "streaming", user }),
+    signal: controller.signal,
+  })
+    .then(async (res) => {
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        try { onError(new Error(text || `HTTP ${res.status}`)); } catch {}
+        return;
+      }
+      const ct = res.headers.get("content-type") || "";
+      if (ct.includes("application/json") || ct.includes("text/plain")) {
+        try {
+          const json = await res.json().catch(() => null);
+          if (json?.answer) {
+            onChunk(json.answer);
+            if (json.conversation_id) onConversation(json.conversation_id);
+          } else {
+            const text = await res.text().catch(() => "");
+            if (text) onChunk(text);
+          }
+        } catch { try { onError(new Error("Failed to parse response")); } catch {} }
+        try { onDone(); } catch {}
+        return;
+      }
+      // SSE streaming response
+      if (!res.body) {
+        try { onError(new Error("Response body is empty")); } catch {}
+        return;
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      let convSent = false;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          try { onDone(); } catch {}
+          break;
+        }
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          const s = line.trim();
+          if (s.startsWith("data:")) {
+            try {
+              const json = JSON.parse(s.slice(5).trim());
+              if (!convSent && json.conversation_id) {
+                convSent = true;
+                onConversation(json.conversation_id);
+              }
+              if (json.event === "message" && json.answer) {
+                onChunk(json.answer);
+              }
+            } catch {
+              // skip unparseable
+            }
+          }
+        }
+      }
+    })
+    .catch((e) => {
+      if (e.name !== "AbortError") {
+        try { onError(e); } catch {}
+      }
+    });
+
+  return controller;
+}

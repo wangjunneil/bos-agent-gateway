@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   Box,
   Button,
@@ -79,7 +80,7 @@ function MarkdownContent({ text }) {
               "& strong": { fontWeight: 600 },
             }}
           >
-            <ReactMarkdown>{part.content}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{part.content}</ReactMarkdown>
           </Box>
         )
       )}

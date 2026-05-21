@@ -65,6 +65,7 @@ async def get_public_settings() -> dict:
     return {
         "auto_refresh_interval_seconds": settings.AUTO_REFRESH_INTERVAL_SECONDS,
         "command_mode_enabled": bool(settings.DIFY_COMMAND_URL and settings.DIFY_COMMAND_KEY),
+        "command_fetch_url": settings.COMMAND_FETCH_URL,
     }
 
 
