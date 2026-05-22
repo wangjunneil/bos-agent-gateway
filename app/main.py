@@ -22,6 +22,8 @@ async def lifespan(app: FastAPI):
         level=logging.DEBUG if settings.DEBUG else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+    logging.getLogger("aiosqlite").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
 
     await init_db()
     logger.info("Database initialised")

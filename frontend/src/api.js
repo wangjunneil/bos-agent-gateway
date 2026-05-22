@@ -19,7 +19,7 @@ async function request(path, options = {}) {
     ...options,
     headers: {
       "Content-Type": "application/json",
-      "X-API-Key": getApiKey(),
+      "Authorization": `Bearer ${getApiKey()}`,
       ...options.headers,
     },
   });
@@ -44,7 +44,7 @@ async function request(path, options = {}) {
 
 export async function validateKey(key) {
   const res = await fetch(`${BASE}/v1/agents/`, {
-    headers: { "X-API-Key": key },
+    headers: { "Authorization": `Bearer ${key}` },
   });
   return res.ok;
 }

@@ -9,7 +9,11 @@ async def get_current_user(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    api_key = request.headers.get("X-API-Key")
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer "):
+        api_key = auth.removeprefix("Bearer ").strip()
+    else:
+        api_key = request.headers.get("X-API-Key", "")
     if not api_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

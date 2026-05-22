@@ -24,7 +24,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["dify"])
 
-FORWARD_FILTER = {"x-api-key", "host", "x-forwarded-for", "x-real-ip"}
+FORWARD_FILTER = {
+    "x-api-key", "authorization", "host", "x-forwarded-for", "x-real-ip", "content-length",
+}
 EXPOSE_HEADERS = {"content-type", "authorization", "content-length"}
 
 
@@ -261,6 +263,32 @@ async def _handle_proxy(
         forward_headers["Authorization"] = f"Bearer {agent.dify_api_key}"
         forward_headers.pop("authorization", None)
 
+    # Ensure JSON Content-Type when body is present and no explicit JSON content-type
+    if body:
+        ct_key = None
+        for k in forward_headers:
+            if k.lower() == "content-type":
+                ct_key = k
+                break
+        if ct_key:
+            if "x-www-form-urlencoded" in forward_headers[ct_key].lower():
+                forward_headers[ct_key] = "application/json"
+        else:
+            forward_headers["Content-Type"] = "application/json"
+
+    if settings.DEBUG:
+        header_args = " ".join(
+            f"--header '{k}: {v}'" for k, v in forward_headers.items()
+        )
+        body_str = body.decode("utf-8", errors="replace")
+        logger.info(
+            "Proxy request:\ncurl -X %s '%s' %s%s",
+            method,
+            target_url,
+            header_args,
+            f" --data '{body_str}'" if body_str else "",
+        )
+
     start = time.monotonic()
 
     # Command mode: if enabled and this is a chat-messages request, check command service first
@@ -356,7 +384,9 @@ async def _handle_proxy(
             elif method == "PUT":
                 upstream = await client.put(target_url, content=body, headers=forward_headers)
             elif method == "DELETE":
-                upstream = await client.delete(target_url, headers=forward_headers)
+                upstream = await client.request(
+                    "DELETE", target_url, content=body, headers=forward_headers
+                )
             elif method == "PATCH":
                 upstream = await client.patch(target_url, content=body, headers=forward_headers)
             else:
